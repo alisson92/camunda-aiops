@@ -1,0 +1,21 @@
+# Logs
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# macOS / Windows
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# Variáveis de ambiente (nunca commitar credenciais)
+.env
+.env.*
