@@ -1,0 +1,565 @@
+{
+  "__requires": [
+    { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.0.0" },
+    { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" },
+    { "type": "panel", "id": "timeseries", "name": "Time series", "version": "" }
+  ],
+  "annotations": { "list": [] },
+  "description": "Dashboard de forecasting local — usa smoothing e projeção via PromQL sem plugin pago",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "CPU — real vs projeção",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Linha real (azul) vs média móvel 10min (verde) — o smoothing remove ruído e evidencia tendência, base do forecasting",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": true,
+            "showPoints": "never"
+          },
+          "unit": "percentunit"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "CPU real" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } },
+              { "id": "custom.fillOpacity", "value": 5 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Média móvel 10min" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#73BF69", "mode": "fixed" } },
+              { "id": "custom.lineWidth", "value": 3 }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 1 },
+      "id": 1,
+      "options": {
+        "legend": { "calcs": ["mean", "max", "last"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=~\"camunda|load-test\", container!=\"\"}[2m])) / sum(kube_node_status_allocatable{resource=\"cpu\"})",
+          "legendFormat": "CPU real",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "avg_over_time(\n  (\n    sum(rate(container_cpu_usage_seconds_total{namespace=~\"camunda|load-test\", container!=\"\"}[2m]))\n    / sum(kube_node_status_allocatable{resource=\"cpu\"})\n  )[10m:1m]\n)",
+          "legendFormat": "Média móvel 10min",
+          "refId": "B"
+        }
+      ],
+      "title": "CPU — real vs média móvel (smoothing base para forecasting)",
+      "type": "timeseries"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 10 },
+      "id": 101,
+      "title": "Memória — pressão e tendência",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Linha real (azul) vs projeção conservadora +15min com janela de 30min (laranja) vs holt_winters (roxo). predict_linear com janela curta superestima — janela de 30min + horizonte de 15min é mais honesto para memória de aplicação Java com GC.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 8, "spanNulls": true, "showPoints": "never" },
+          "unit": "bytes"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Memória atual (working set)" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Projeção +15min (predict_linear, janela 30m)" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#FF9830", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [8, 4], "fill": "dash" } },
+              { "id": "custom.lineWidth", "value": 2 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Suavização exponencial dupla (double_exponential_smoothing)" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#B877D9", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [4, 2], "fill": "dash" } },
+              { "id": "custom.lineWidth", "value": 2 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Limite (requests)" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#E02F44", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [4, 4], "fill": "dash" } }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 11 },
+      "id": 2,
+      "options": {
+        "legend": { "calcs": ["mean", "max", "last"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "expr": "sum(container_memory_working_set_bytes{namespace=~\"camunda|load-test\", container!=\"\"})",
+          "legendFormat": "Memória atual (working set)",
+          "refId": "A"
+        },
+        {
+          "expr": "predict_linear(sum(container_memory_working_set_bytes{namespace=~\"camunda|load-test\", container!=\"\"})[30m:2m], 900)",
+          "legendFormat": "Projeção +15min (predict_linear, janela 30m)",
+          "refId": "B"
+        },
+        {
+          "expr": "double_exponential_smoothing(sum(container_memory_working_set_bytes{namespace=~\"camunda|load-test\", container!=\"\"})[30m:2m], 0.3, 0.1)",
+          "legendFormat": "Suavização exponencial dupla (double_exponential_smoothing)",
+          "refId": "D"
+        },
+        {
+          "expr": "sum(kube_pod_container_resource_requests{namespace=~\"camunda|load-test\", resource=\"memory\"})",
+          "legendFormat": "Limite (requests)",
+          "refId": "C"
+        }
+      ],
+      "title": "Memória — real vs projeção 15min (predict_linear) vs média móvel 30min",
+      "type": "timeseries"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 20 },
+      "id": 102,
+      "title": "Pods — escala e sazonalidade",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Varia conforme o scale up/down do 02-load-generator.sh. Evidencia o padrão oscilatório — matéria-prima para o forecasting de sazonalidade.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 10, "spanNulls": true, "showPoints": "auto", "pointSize": 5 },
+          "unit": "short",
+          "min": 0
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 21 },
+      "id": 3,
+      "options": {
+        "legend": { "calcs": ["last", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "expr": "sum by (namespace) (kube_pod_status_phase{namespace=~\"camunda|load-test\", phase=\"Running\"})",
+          "legendFormat": "Pods Running — {{namespace}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Pods Running por namespace (padrão de escala)",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "deriv() mostra a taxa de variação — positivo = crescimento, negativo = redução. Útil para detectar tendências antes de virar problema.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 8, "spanNulls": true, "showPoints": "never" },
+          "unit": "Bps"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 21 },
+      "id": 4,
+      "options": {
+        "legend": { "calcs": ["mean", "last"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "expr": "deriv(sum(container_memory_working_set_bytes{namespace=~\"camunda|load-test\", container!=\"\"})[5m:])",
+          "legendFormat": "Taxa de crescimento de memória (deriv 5m)",
+          "refId": "A"
+        }
+      ],
+      "title": "Taxa de crescimento de memória (deriv) — tendência",
+      "type": "timeseries"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 29 },
+      "id": 103,
+      "title": "Alertas preditivos baseados em projeção",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Projeção conservadora: janela 30min, horizonte 15min. Só amarela acima de 75%, vermelha acima de 88% — thresholds calibrados para evitar falso positivo em picos normais de GC Java.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green",  "value": null },
+              { "color": "yellow", "value": 75 },
+              { "color": "red",    "value": 88 }
+            ]
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "mappings": []
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 30 },
+      "id": 5,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "expr": "predict_linear(\n  sum(container_memory_working_set_bytes{namespace=~\"camunda|load-test\", container!=\"\"})[30m:2m],\n  900\n)\n/ sum(kube_node_status_allocatable{resource=\"memory\"})\n* 100",
+          "legendFormat": "Memória projetada +15min",
+          "refId": "A"
+        }
+      ],
+      "title": "Ocupação de memória projetada daqui 15min — janela 30m (%)",
+      "type": "gauge"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Taxa de variação do CPU — se positivo e crescendo, há tendência de pressão futura. Se negativo, o cluster está se recuperando.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue",   "value": null },
+              { "color": "green",  "value": -0.001 },
+              { "color": "yellow", "value": 0.001 },
+              { "color": "red",    "value": 0.005 }
+            ]
+          },
+          "unit": "short",
+          "mappings": []
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 30 },
+      "id": 6,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "expr": "deriv(\n  sum(rate(container_cpu_usage_seconds_total{namespace=~\"camunda|load-test\", container!=\"\"}[2m]))\n[5m:])",
+          "legendFormat": "Aceleração do CPU",
+          "refId": "A"
+        }
+      ],
+      "title": "Tendência de CPU (deriv) — negativo=reduzindo, positivo=crescendo",
+      "type": "gauge"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 38 },
+      "id": 200,
+      "title": "Zeebe — saúde do motor BPMN",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Backpressure é o principal sinal de gargalo no Zeebe. Quando inflight_requests cresce e requests_limit não acompanha, o broker está rejeitando comandos. predict_linear nessa métrica é o alerta preditivo mais valioso do stack Camunda.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 10, "spanNulls": true, "showPoints": "never" },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Requests em voo (inflight)" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#FF9830", "mode": "fixed" } },
+              { "id": "custom.lineWidth", "value": 2 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Limite de requests (backpressure)" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#E02F44", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [6, 3], "fill": "dash" } },
+              { "id": "custom.lineWidth", "value": 2 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Projeção inflight +15min" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#FADE2A", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [8, 4], "fill": "dash" } }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 39 },
+      "id": 201,
+      "options": {
+        "legend": { "calcs": ["mean", "max", "last"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "expr": "sum(zeebe_backpressure_inflight_requests_count)",
+          "legendFormat": "Requests em voo (inflight)",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(zeebe_backpressure_requests_limit)",
+          "legendFormat": "Limite de requests (backpressure)",
+          "refId": "B"
+        },
+        {
+          "expr": "predict_linear(sum(zeebe_backpressure_inflight_requests_count)[30m:2m], 900)",
+          "legendFormat": "Projeção inflight +15min",
+          "refId": "C"
+        }
+      ],
+      "title": "Zeebe — Backpressure: inflight vs limite (+ projeção 15min)",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Latência p99 do stream processor — tempo que o Zeebe leva para processar cada comando BPMN. Crescimento sustentado indica sobrecarga. double_exponential_smoothing suaviza picos de GC e evidencia tendência real.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 8, "spanNulls": true, "showPoints": "never" },
+          "unit": "s"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Latência p99 stream processor" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Suavização exponencial (tendência real)" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#B877D9", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [4, 2], "fill": "dash" } },
+              { "id": "custom.lineWidth", "value": 2 }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 48 },
+      "id": 202,
+      "options": {
+        "legend": { "calcs": ["mean", "max", "last"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, rate(zeebe_stream_processor_latency_seconds_bucket[5m]))",
+          "legendFormat": "Latência p99 stream processor",
+          "refId": "A"
+        },
+        {
+          "expr": "double_exponential_smoothing(histogram_quantile(0.99, rate(zeebe_stream_processor_latency_seconds_bucket[5m]))[30m:2m], 0.3, 0.1)",
+          "legendFormat": "Suavização exponencial (tendência real)",
+          "refId": "B"
+        }
+      ],
+      "title": "Zeebe — Latência p99 stream processor + tendência",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Memória RocksDB — crescimento monotônico com volume de dados do Zeebe. Ideal para predict_linear: cresce de forma previsível e não tem GC para distorcer. Quando ultrapassar o limite de heap do pod, o Zeebe vai crashar.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 8, "spanNulls": true, "showPoints": "never" },
+          "unit": "bytes"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "RocksDB — todas as mem tables" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#73BF69", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Projeção RocksDB +15min" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#FF9830", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [8, 4], "fill": "dash" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Block cache capacity" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#E02F44", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [4, 4], "fill": "dash" } }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 48 },
+      "id": 203,
+      "options": {
+        "legend": { "calcs": ["mean", "max", "last"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "expr": "sum(zeebe_rocksdb_memory_cur_size_all_mem_tables)",
+          "legendFormat": "RocksDB — todas as mem tables",
+          "refId": "A"
+        },
+        {
+          "expr": "predict_linear(sum(zeebe_rocksdb_memory_cur_size_all_mem_tables)[30m:2m], 900)",
+          "legendFormat": "Projeção RocksDB +15min",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(zeebe_rocksdb_memory_block_cache_capacity)",
+          "legendFormat": "Block cache capacity",
+          "refId": "C"
+        }
+      ],
+      "title": "Zeebe — Memória RocksDB vs projeção 15min",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "JVM heap usado por componente Camunda. GC causa oscilações normais — double_exponential_smoothing filtra o ruído e mostra se há crescimento real (possível leak ou sobrecarga). Quando a suavização subir consistentemente, investigar antes do OOM.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 8, "spanNulls": true, "showPoints": "never" },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 57 },
+      "id": 204,
+      "options": {
+        "legend": { "calcs": ["mean", "max", "last"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "expr": "jvm_memory_used_bytes{area=\"heap\", namespace=\"camunda\"}",
+          "legendFormat": "Heap — {{job}} ({{id}})",
+          "refId": "A"
+        }
+      ],
+      "title": "JVM Heap por componente Camunda",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Latência p99 dos endpoints HTTP dos componentes Camunda (Identity, Optimize, Connectors, Web Modeler). Crescimento aqui antes do Zeebe indica sobrecarga na camada de API, não no motor BPMN.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 8, "spanNulls": true, "showPoints": "never" },
+          "unit": "s"
+        }
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 57 },
+      "id": 205,
+      "options": {
+        "legend": { "calcs": ["mean", "max", "last"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum by (job, le) (rate(http_server_requests_seconds_bucket{namespace=\"camunda\"}[5m])))",
+          "legendFormat": "p99 — {{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "HTTP p99 por componente Camunda",
+      "type": "timeseries"
+    }
+
+  ],
+
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "tags": ["camunda", "forecasting", "kind", "local"],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "type": "datasource",
+        "label": "Datasource"
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Camunda Local — Forecasting com PromQL",
+  "uid": "camunda-local-forecasting",
+  "version": 1
+}
