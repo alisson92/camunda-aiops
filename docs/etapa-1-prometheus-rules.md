@@ -1,7 +1,7 @@
 ---
 titulo: Etapa 1 — Alertas Preditivos com PrometheusRule
 data: 2026-05-21
-status: em-andamento
+status: concluída
 depende-de: baseline do dashboard (camunda-forecasting.json)
 ---
 
@@ -231,9 +231,40 @@ Acessar `http://localhost:9093` e confirmar que alertas com label `etapa: "1"` a
 
 ## Problemas encontrados
 
-> *Seção a ser preenchida durante a implementação.*
+### 1. Query inválida: range selector após agregação
 
-Registrar aqui qualquer comportamento inesperado, workaround aplicado ou decisão que fugiu do caminho feliz documentado acima.
+**Sintoma:** `parse error: ranges only allowed for vector selectors`
+
+**Causa raiz:** O PromQL não permite aplicar um range selector (`[30m]`, `[1h]`) a um instant vector resultante de uma agregação (`max by`, `sum by`). O `predict_linear` exige um range vector como primeiro argumento, e range vectors só podem ser criados a partir de seletores de métricas brutos.
+
+**Exemplo inválido:**
+```promql
+predict_linear(max by (pod)(jvm_memory_used_bytes{...})[30m], 900)
+```
+
+**Correção — para alertas de série única:** aplicar o range no seletor bruto, sem agregação prévia:
+```promql
+predict_linear(jvm_memory_used_bytes{..., id="G1 Old Gen"}[30m], 900)
+```
+
+**Correção — para soma de namespace (Alerta 3):** aplicar `predict_linear` em cada série individualmente e agregar o resultado:
+```promql
+sum by (namespace)(predict_linear(container_memory_working_set_bytes{...}[1h], 1800))
+```
+
+### 2. Heap do Zeebe: G1 Eden e G1 Survivor têm max = -1
+
+**Sintoma:** a query de ratio de heap (usado/max) retornava valores negativos ou inúteis para algumas séries.
+
+**Causa raiz:** no G1GC, Eden Space e Survivor Space têm tamanho dinâmico — o JVM não expõe um limite fixo, então `jvm_memory_max_bytes` retorna `-1` para essas áreas.
+
+**Decisão:** filtrar apenas `id="G1 Old Gen"`, que corresponde ao `Xmx` configurado (750MB no Zeebe deste lab) e é a única área com limite fixo e significativo para detecção de pressão de memória.
+
+### 3. Estado `unknown` após aplicação do PrometheusRule
+
+**Sintoma:** logo após `kubectl apply`, a API do Prometheus retornava `health: "unknown", state: "unknown"` para todas as regras.
+
+**Causa:** comportamento esperado — o Prometheus carrega as regras mas só as avalia no próximo ciclo (`interval: 1m`). Após ~60 segundos, todas passaram para `health: "ok", state: "inactive"`.
 
 ---
 

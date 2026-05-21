@@ -1,0 +1,113 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: camunda-forecasting-alerts
+  namespace: monitoring
+  labels:
+    # Obrigatório: label que o operador do kube-prometheus-stack usa para descobrir PrometheusRules
+    release: kube-prometheus-stack
+    app: camunda-forecasting
+spec:
+  groups:
+    - name: camunda.forecasting.memory
+      # Avalia os alertas a cada 1 minuto
+      interval: 1m
+      rules:
+
+        # Alerta 1: JVM heap do Zeebe (G1 Old Gen) projetada acima de 85% em 15 minutos
+        #
+        # Por que G1 Old Gen e não o total de heap?
+        # G1 Eden Space e G1 Survivor Space retornam max=-1 (limites dinâmicos do GC).
+        # Somente G1 Old Gen tem um max fixo (750MB = Xmx configurado no Zeebe).
+        # O [30m] é aplicado diretamente ao seletor — PromQL não permite range selector
+        # após agregação (criaria um instant vector, inválido como input do predict_linear).
+        # Janela [30m] = 2× o horizonte de 900s (15min) — regra: janela >= 2× horizonte.
+        - alert: ZeebeMemoryPredictedHigh
+          expr: |
+            (
+              predict_linear(
+                jvm_memory_used_bytes{
+                  namespace="camunda",
+                  pod=~"camunda-zeebe-[0-9]+",
+                  area="heap",
+                  id="G1 Old Gen"
+                }[30m],
+                900
+              )
+              /
+              jvm_memory_max_bytes{
+                namespace="camunda",
+                pod=~"camunda-zeebe-[0-9]+",
+                area="heap",
+                id="G1 Old Gen"
+              }
+            ) > 0.85
+          # for: exige que a condição persista 2min antes de disparar — evita falsos positivos de pico momentâneo
+          for: 2m
+          labels:
+            severity: warning
+            team: platform
+            etapa: "1"
+          annotations:
+            summary: "Zeebe {{ $labels.pod }} — heap (Old Gen) projetada acima de 85% em 15min"
+            description: |
+              A projeção linear da G1 Old Gen indica que {{ $labels.pod }} atingirá
+              {{ $value | humanizePercentage }} de uso de heap nos próximos 15 minutos.
+              Max configurado (Xmx): 750MB.
+
+        # Alerta 2: aceleração positiva de backpressure do Zeebe
+        #
+        # deriv() calcula a taxa de variação por segundo da série no intervalo [10m].
+        # Valor positivo = número de requests in-flight crescendo.
+        # Threshold 0.5: mais de 0.5 req/s de crescimento sustentado por 3min indica pressão real.
+        - alert: ZeebeBackpressureGrowing
+          expr: |
+            deriv(
+              zeebe_backpressure_inflight_requests_count{namespace="camunda"}[10m]
+            ) > 0.5
+          for: 3m
+          labels:
+            severity: warning
+            team: platform
+            etapa: "1"
+          annotations:
+            summary: "Zeebe backpressure em aceleração — {{ $labels.pod }}"
+            description: |
+              Derivada do backpressure: {{ $value | humanize }} req/s.
+              O sistema está acumulando requests in-flight mais rápido do que processa.
+              Verifique latência do Zeebe e RocksDB.
+
+    - name: camunda.forecasting.capacity
+      interval: 1m
+      rules:
+
+        # Alerta 3: memória total consumida pelo namespace camunda projetada acima de 6GB em 30min
+        #
+        # Por que threshold fixo em vez de ratio com memória do nó?
+        # sum(kube_node_status_allocatable) soma os 3 nós (~48GB total), tornando o ratio
+        # artificialmente baixo e inútil para alertas do namespace.
+        # 6GB é o limite prático observado neste lab para o namespace camunda (atualmente ~3.5GB).
+        # Janela [1h] = 2× o horizonte de 1800s (30min).
+        # predict_linear é aplicado a cada série individualmente; sum() agrega o resultado —
+        # ordem obrigatória: [1h] precisa estar no seletor bruto, não após uma agregação.
+        - alert: CamundaNamespaceMemoryPressure
+          expr: |
+            sum by (namespace) (
+              predict_linear(
+                container_memory_working_set_bytes{
+                  namespace="camunda",
+                  container!=""
+                }[1h],
+                1800
+              )
+            ) > 6442450944
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+            etapa: "1"
+          annotations:
+            summary: "Namespace camunda — memória projetada acima de 6GB em 30min"
+            description: |
+              Projeção: {{ $value | humanize1024 }}B em 30 minutos.
+              Inspecione consumo por pod: kubectl top pods -n camunda --sort-by=memory
