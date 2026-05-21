@@ -15,14 +15,14 @@ relacionado:
 |---|---|
 | Autor | Alisson Lima |
 | Data | 20 de maio de 2026 |
-| Perfil | SRE / DevOps Junior |
+| Perfil | SRE / DevOps |
 | Ambiente | Kind local + Camunda 8.9 + kube-prometheus-stack |
 
 ---
 
 ## 1. Motivação — Por que pensar em ML para alertas?
 
-O ponto de partida não foi uma tecnologia — foi um problema operacional concreto e recorrente: **alertas que disparam às 3h da manhã para situações completamente normais**.
+O ponto de partida foi no sentido de pensar em atuar de forma proativa e não mais reagindo aos incidentes quando estes aconteciam. 
 
 Um cluster Kubernetes com Camunda 8.9 em produção tem padrões previsíveis: CPU mais alta às 9h de segunda-feira, picos de processamento em datas de fechamento, consumo de memória que oscila por conta do Garbage Collector Java. Um alerta baseado em threshold fixo não sabe disso. Ele dispara toda vez que o valor ultrapassa o número configurado, independente do contexto histórico.
 
