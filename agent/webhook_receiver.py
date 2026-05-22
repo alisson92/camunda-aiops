@@ -10,6 +10,7 @@ from datetime import datetime
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 from reactive_agent import run_agent
+from teams_notifier import send_alert_to_teams
 
 app = FastAPI(title="Camunda AIOps Webhook Receiver")
 
@@ -62,6 +63,14 @@ async def alertmanager_webhook(request: Request):
         print("ANÁLISE DO AGENTE:")
         print(analysis)
         print(f"{'='*60}\n")
+
+        send_alert_to_teams(
+            alert_name=alert_name,
+            alert_labels=labels,
+            alert_annotations=annotations,
+            status=status,
+            analysis=analysis,
+        )
 
         analyses.append({"alertname": alert_name, "status": status, "analysis": analysis})
 
