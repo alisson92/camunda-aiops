@@ -1,5 +1,5 @@
 """
-Ferramentas Prometheus chamadas pelo agente via Claude API tool use.
+Ferramentas Prometheus chamadas pelo agente via tool use.
 Cada função bate diretamente na HTTP API do Prometheus local (porta 9090).
 """
 
@@ -23,7 +23,6 @@ def query_prometheus_instant(expr: str) -> dict:
         results = data["data"]["result"]
         if not results:
             return {"empty": True, "expr": expr, "hint": "Nenhuma série encontrada. Verifique labels e se o target está ativo."}
-        # Formata para ser mais legível pelo modelo
         return {
             "resultType": data["data"]["resultType"],
             "results": [
@@ -97,52 +96,61 @@ TOOL_DISPATCH = {
     "get_alert_rules": get_alert_rules,
 }
 
-# Schemas no formato esperado pela Claude API
+# Schemas no formato OpenAI / Ollama (compatível com openai SDK)
 TOOL_SCHEMAS = [
     {
-        "name": "query_prometheus_instant",
-        "description": (
-            "Executa uma PromQL instant query no Prometheus local e retorna os valores atuais. "
-            "Use para checar o estado presente de uma métrica."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "expr": {
-                    "type": "string",
-                    "description": "Expressão PromQL a executar, ex: jvm_memory_used_bytes{pod='camunda-zeebe-0'}",
-                }
+        "type": "function",
+        "function": {
+            "name": "query_prometheus_instant",
+            "description": (
+                "Executa uma PromQL instant query no Prometheus local e retorna os valores atuais. "
+                "Use para checar o estado presente de uma métrica."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "expr": {
+                        "type": "string",
+                        "description": "Expressão PromQL a executar, ex: jvm_memory_used_bytes{pod='camunda-zeebe-0'}",
+                    }
+                },
+                "required": ["expr"],
             },
-            "required": ["expr"],
         },
     },
     {
-        "name": "query_prometheus_range",
-        "description": (
-            "Executa uma PromQL range query para observar a tendência de uma métrica ao longo do tempo. "
-            "Use para confirmar se um recurso está crescendo ou oscilando."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "expr": {"type": "string", "description": "Expressão PromQL"},
-                "start": {"type": "string", "description": "Início em Unix timestamp ou relativo, ex: 'now-30m'"},
-                "end": {"type": "string", "description": "Fim em Unix timestamp ou relativo, ex: 'now'"},
-                "step": {"type": "string", "description": "Intervalo em segundos entre pontos, ex: '60'"},
+        "type": "function",
+        "function": {
+            "name": "query_prometheus_range",
+            "description": (
+                "Executa uma PromQL range query para observar a tendência de uma métrica ao longo do tempo. "
+                "Use para confirmar se um recurso está crescendo ou oscilando."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "expr": {"type": "string", "description": "Expressão PromQL"},
+                    "start": {"type": "string", "description": "Início em Unix timestamp ou relativo, ex: 'now-30m'"},
+                    "end": {"type": "string", "description": "Fim em Unix timestamp ou relativo, ex: 'now'"},
+                    "step": {"type": "string", "description": "Intervalo em segundos entre pontos, ex: '60'"},
+                },
+                "required": ["expr", "start", "end"],
             },
-            "required": ["expr", "start", "end"],
         },
     },
     {
-        "name": "get_alert_rules",
-        "description": (
-            "Lista as PrometheusRules preditivas do Camunda com seus thresholds e estado atual. "
-            "Use para entender o que cada alerta está monitorando."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {},
-            "required": [],
+        "type": "function",
+        "function": {
+            "name": "get_alert_rules",
+            "description": (
+                "Lista as PrometheusRules preditivas do Camunda com seus thresholds e estado atual. "
+                "Use para entender o que cada alerta está monitorando."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+            },
         },
     },
 ]

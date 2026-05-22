@@ -1,12 +1,16 @@
 """
 Agente reativo: recebe contexto de um alerta, chama ferramentas Prometheus
-via tool use da Claude API e retorna análise estruturada.
+via tool use (OpenAI-compatible API → Ollama local) e retorna análise estruturada.
+
+Nenhum dado sai da máquina: Ollama roda localmente, Prometheus é acessado via
+port-forward local. Zero dependência de APIs externas.
 """
 
 import json
 import os
 from pathlib import Path
-import anthropic
+
+from openai import OpenAI
 from tools import TOOL_SCHEMAS, TOOL_DISPATCH
 from prompts import SYSTEM_PROMPT, build_user_message
 
@@ -19,7 +23,8 @@ if _env_file.exists():
             key, _, val = line.partition("=")
             os.environ.setdefault(key.strip(), val.strip())
 
-MODEL = "claude-sonnet-4-6"
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5:7b")
 MAX_TOOL_ROUNDS = 6  # limite de segurança para o agentic loop
 
 
@@ -28,49 +33,49 @@ def run_agent(alert_name: str, alert_labels: dict, alert_annotations: dict, stat
     Executa o loop do agente para um alerta recebido.
     Retorna a análise final como string.
     """
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    # api_key="ollama" é um placeholder obrigatório pelo SDK — Ollama não valida o valor
+    client = OpenAI(base_url=OLLAMA_BASE_URL, api_key="ollama")
 
     messages = [
-        {
-            "role": "user",
-            "content": build_user_message(alert_name, alert_labels, alert_annotations, status),
-        }
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": build_user_message(alert_name, alert_labels, alert_annotations, status)},
     ]
 
     print(f"\n[agent] Iniciando análise para alerta: {alert_name} ({status})")
+    print(f"[agent] Modelo: {OLLAMA_MODEL} | Endpoint: {OLLAMA_BASE_URL}")
 
     for round_n in range(MAX_TOOL_ROUNDS):
-        response = client.messages.create(
-            model=MODEL,
-            max_tokens=4096,
-            system=SYSTEM_PROMPT,
-            tools=TOOL_SCHEMAS,
+        response = client.chat.completions.create(
+            model=OLLAMA_MODEL,
             messages=messages,
+            tools=TOOL_SCHEMAS,
+            # tool_choice="auto" é o padrão — o modelo decide quando usar ferramentas
         )
 
-        # Adiciona a resposta do modelo ao histórico
-        messages.append({"role": "assistant", "content": response.content})
+        choice = response.choices[0]
 
-        if response.stop_reason == "end_turn":
-            # Agente concluiu — extrai texto final
-            final_text = next(
-                (block.text for block in response.content if hasattr(block, "text")),
-                "[sem resposta textual]",
-            )
+        # Adiciona a resposta do modelo ao histórico (objeto message do OpenAI SDK)
+        messages.append(choice.message)
+
+        if choice.finish_reason == "stop":
+            # Agente concluiu sem mais chamadas de ferramenta
+            final_text = choice.message.content or "[sem resposta textual]"
             print(f"[agent] Análise concluída após {round_n + 1} rodada(s).")
             return final_text
 
-        if response.stop_reason != "tool_use":
-            return f"[agent] Stop reason inesperado: {response.stop_reason}"
+        if choice.finish_reason != "tool_calls":
+            return f"[agent] finish_reason inesperado: {choice.finish_reason}"
 
         # Processa todas as chamadas de ferramentas desta rodada
-        tool_results = []
-        for block in response.content:
-            if block.type != "tool_use":
-                continue
+        tool_calls = choice.message.tool_calls or []
+        for tool_call in tool_calls:
+            tool_name = tool_call.function.name
+            try:
+                tool_input = json.loads(tool_call.function.arguments)
+            except json.JSONDecodeError as e:
+                tool_input = {}
+                print(f"[agent] Erro ao parsear argumentos de {tool_name}: {e}")
 
-            tool_name = block.name
-            tool_input = block.input
             print(f"[agent] Chamando ferramenta: {tool_name}({json.dumps(tool_input, ensure_ascii=False)})")
 
             fn = TOOL_DISPATCH.get(tool_name)
@@ -83,12 +88,12 @@ def run_agent(alert_name: str, alert_labels: dict, alert_annotations: dict, stat
                     result = {"error": str(e)}
 
             print(f"[agent] Resultado de {tool_name}: {json.dumps(result, ensure_ascii=False)[:300]}...")
-            tool_results.append({
-                "type": "tool_result",
-                "tool_use_id": block.id,
+
+            # Resultado de ferramenta no formato OpenAI
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tool_call.id,
                 "content": json.dumps(result, ensure_ascii=False),
             })
-
-        messages.append({"role": "user", "content": tool_results})
 
     return "[agent] Limite de rodadas de ferramentas atingido sem conclusão."
