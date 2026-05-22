@@ -1,0 +1,38 @@
+# AlertmanagerConfig CRD — rota e receiver para alertas preditivos do Camunda
+#
+# O Prometheus Operator faz merge desta config como sub-rota sob a rota raiz,
+# sem precisar modificar o alertmanager.config global do kube-prometheus-stack.
+#
+# Aplicar com:
+#   kubectl apply -f alerting/alertmanager-config-camunda.yaml
+#
+# Verificar merge:
+#   kubectl get alertmanagerconfig -n camunda
+#   curl -s http://localhost:9093/api/v2/status | python3 -m json.tool | grep -A5 camunda
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: camunda-aiops-webhook
+  namespace: camunda
+  labels:
+    # Label obrigatória para o operator incluir esta config
+    release: kube-prometheus-stack
+spec:
+  route:
+    receiver: camunda-aiops-webhook
+    # O operator prefixa automaticamente: camunda/camunda-aiops-webhook/camunda-aiops-webhook
+    matchers:
+      - name: namespace
+        value: camunda
+        matchType: "="
+    groupWait: 10s
+    repeatInterval: 1h
+    continue: false
+
+  receivers:
+    - name: camunda-aiops-webhook
+      webhookConfigs:
+        - url: "http://172.18.0.1:5001/webhook"
+          sendResolved: true
+          httpConfig:
+            followRedirects: true

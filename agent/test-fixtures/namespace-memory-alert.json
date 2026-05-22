@@ -1,0 +1,34 @@
+{
+  "receiver": "camunda-aiops-webhook",
+  "status": "firing",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "CamundaNamespaceMemoryPressure",
+        "namespace": "camunda",
+        "severity": "warning"
+      },
+      "annotations": {
+        "summary": "Namespace camunda projetado acima de 6GB em 30min",
+        "description": "A soma de container_memory_working_set_bytes do namespace camunda está crescendo e deve ultrapassar 6GB nos próximos 30 minutos. Identifique qual pod está consumindo mais memória."
+      },
+      "startsAt": "2026-05-21T12:00:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://localhost:9090/graph?g0.expr=predict_linear"
+    }
+  ],
+  "groupLabels": {
+    "alertname": "CamundaNamespaceMemoryPressure"
+  },
+  "commonLabels": {
+    "alertname": "CamundaNamespaceMemoryPressure",
+    "severity": "warning"
+  },
+  "commonAnnotations": {
+    "summary": "Namespace camunda projetado acima de 6GB em 30min"
+  },
+  "externalURL": "http://localhost:9093",
+  "version": "4",
+  "groupKey": "{}/{alertname=~\"Zeebe.*|Camunda.*\"}:{alertname=\"CamundaNamespaceMemoryPressure\"}"
+}

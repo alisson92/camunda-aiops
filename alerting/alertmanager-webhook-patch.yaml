@@ -1,0 +1,73 @@
+# Patch de valores para o kube-prometheus-stack — Etapa 3 AIOps
+#
+# Fornece alertmanager.config COMPLETO para substituir os defaults do chart
+# (chart v84.3.0 coloca group_interval/group_wait/repeat_interval em global,
+# o que o Prometheus Operator v0.90+ rejeita — esses campos pertencem ao route).
+#
+# Aplicar com:
+#   helm upgrade kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+#     -n monitoring \
+#     -f alertmanager-webhook-patch.yaml \
+#     --reuse-values
+
+alertmanager:
+  config:
+    global:
+      # Apenas resolve_timeout é válido em global no Alertmanager v0.32 / Operator v0.90+
+      resolve_timeout: 5m
+
+    inhibit_rules:
+      - source_matchers:
+          - severity = critical
+        target_matchers:
+          - severity =~ warning|info
+        equal:
+          - namespace
+          - alertname
+      - source_matchers:
+          - severity = warning
+        target_matchers:
+          - severity = info
+        equal:
+          - namespace
+          - alertname
+      - source_matchers:
+          - alertname = InfoInhibitor
+        target_matchers:
+          - severity = info
+        equal:
+          - namespace
+      - target_matchers:
+          - alertname = InfoInhibitor
+
+    route:
+      receiver: "null"
+      group_by:
+        - namespace
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      routes:
+        - receiver: "null"
+          matchers:
+            - alertname =~ "InfoInhibitor|Watchdog"
+        # Alertas preditivos do Camunda → agente reativo AIOps
+        - receiver: camunda-aiops-webhook
+          matchers:
+            - alertname =~ "Zeebe.*|Camunda.*"
+          group_wait: 10s
+          repeat_interval: 1h
+
+    receivers:
+      - name: "null"
+      - name: camunda-aiops-webhook
+        webhook_configs:
+          # host.docker.internal resolve o host da máquina no Kind (Docker network)
+          # 172.23.208.1 = gateway da rede Docker — IP do host acessível de dentro dos pods Kind
+          # host.docker.internal não resolve em Kind no Linux/WSL2
+          # 172.18.0.1 = bridge da rede Kind — IP do host acessível de dentro dos pods
+          # host.docker.internal não resolve em Kind no Linux/WSL2
+          - url: "http://172.18.0.1:5001/webhook"
+            send_resolved: true
+            http_config:
+              follow_redirects: true

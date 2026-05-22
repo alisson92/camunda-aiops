@@ -1,0 +1,35 @@
+{
+  "receiver": "camunda-aiops-webhook",
+  "status": "firing",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "ZeebeMemoryPredictedHigh",
+        "namespace": "camunda",
+        "pod": "camunda-zeebe-0",
+        "severity": "warning"
+      },
+      "annotations": {
+        "summary": "Zeebe JVM heap projetado acima de 600MB em 30min",
+        "description": "predict_linear do G1 Old Gen indica que o heap do Zeebe ultrapassará 600MB nos próximos 30 minutos. Verifique vazamentos de memória ou aumento inesperado de carga de processos BPMN."
+      },
+      "startsAt": "2026-05-21T12:00:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://localhost:9090/graph?g0.expr=predict_linear"
+    }
+  ],
+  "groupLabels": {
+    "alertname": "ZeebeMemoryPredictedHigh"
+  },
+  "commonLabels": {
+    "alertname": "ZeebeMemoryPredictedHigh",
+    "severity": "warning"
+  },
+  "commonAnnotations": {
+    "summary": "Zeebe JVM heap projetado acima de 600MB em 30min"
+  },
+  "externalURL": "http://localhost:9093",
+  "version": "4",
+  "groupKey": "{}/{alertname=~\"Zeebe.*|Camunda.*\"}:{alertname=\"ZeebeMemoryPredictedHigh\"}"
+}
