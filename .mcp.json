@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "grafana": {
+      "command": "/home/alisson/go/bin/mcp-grafana",
+      "args": [],
+      "env": {
+        "GRAFANA_URL": "http://localhost:3000"
+      }
+    }
+  }
+}
