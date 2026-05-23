@@ -54,6 +54,7 @@ spec:
               A projeção linear da G1 Old Gen indica que {{ $labels.pod }} atingirá
               {{ $value | humanizePercentage }} de uso de heap nos próximos 15 minutos.
               Max configurado (Xmx): 750MB.
+            runbook_url: "https://github.com/alisson92/grafana-ml-lab/blob/main/docs/etapa-1-prometheus-rules.md"
 
         # Alerta 2: aceleração positiva de backpressure do Zeebe
         #
@@ -76,6 +77,7 @@ spec:
               Derivada do backpressure: {{ $value | humanize }} req/s.
               O sistema está acumulando requests in-flight mais rápido do que processa.
               Verifique latência do Zeebe e RocksDB.
+            runbook_url: "https://github.com/alisson92/grafana-ml-lab/blob/main/docs/etapa-1-prometheus-rules.md"
 
     - name: camunda.forecasting.capacity
       interval: 1m
@@ -111,3 +113,4 @@ spec:
             description: |
               Projeção: {{ $value | humanize1024 }}B em 30 minutos.
               Inspecione consumo por pod: kubectl top pods -n camunda --sort-by=memory
+            runbook_url: "https://github.com/alisson92/grafana-ml-lab/blob/main/docs/etapa-1-prometheus-rules.md"

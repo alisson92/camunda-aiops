@@ -22,34 +22,24 @@ if _env_file.exists():
 
 from teams_notifier import send_alert_to_teams
 
-ANALYSIS_SAMPLE = """### Diagnóstico
+ANALYSIS_SAMPLE = """**Causa raiz identificada:**
+A métrica `jvm_memory_used_bytes` para a G1 Old Gen do pod `camunda-zeebe-0` está em **93.7 MB** e a projeção linear indica que ultrapassará o threshold de 600 MB em ~30 minutos se a tendência de crescimento se mantiver.
 
-**Causa raiz identificada:**
-A métrica `jvm_memory_used_bytes` para a G1 Old Gen do pod `camunda-zeebe-0` está em **93.7 MB**
-e a projeção linear indica que ultrapassará o threshold de 600 MB em ~30 minutos se a tendência
-de crescimento se mantiver.
-
-### Evidências
-
+**Evidências:**
 - `jvm_memory_used_bytes{id="G1 Old Gen", pod="camunda-zeebe-0"}` = 93.7 MB (atual)
 - Threshold configurado no alerta: 629.145 KB (600 MB)
 - Xmx efetivo da JVM: 750 MB
 
-### Remediação sugerida
-
+**Remediação sugerida:**
 1. Verificar logs do Zeebe em busca de GC pressure:
-   `kubectl logs -n camunda camunda-zeebe-0 --tail=200 | grep -i "gc\\|memory\\|heap"`
-
+   `kubectl logs -n camunda camunda-zeebe-0 --tail=200 | grep -i "gc|memory|heap"`
 2. Inspecionar carga de processos BPMN ativos:
    `kubectl top pod -n camunda`
-
 3. Se o heap continuar crescendo, considerar restart controlado:
    `kubectl rollout restart statefulset/camunda-zeebe -n camunda`
 
-### Próximo monitoramento
-
-Observar `jvm_memory_used_bytes{id="G1 Old Gen"}` nos próximos 10 minutos.
-Se a derivada seguir positiva, ação de remediação necessária.
+**Próximo monitoramento:**
+Observar `jvm_memory_used_bytes{id="G1 Old Gen"}` nos próximos 10 minutos. Se a derivada seguir positiva, acionar remediação.
 """
 
 if __name__ == "__main__":
