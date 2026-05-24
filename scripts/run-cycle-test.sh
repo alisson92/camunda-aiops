@@ -13,9 +13,11 @@
 #   7. Monitoramento em tempo real (tail de logs)
 #
 # Uso:
-#   ./scripts/run-cycle-test.sh [--skip-load] [--intensity low|medium|high] [--duration <min>]
+#   ./scripts/run-cycle-test.sh [--context <kubectl-context>] [--skip-load]
+#                               [--intensity low|medium|high] [--duration <min>]
 #
 # Flags:
+#   --context      Contexto kubectl a usar (obrigatório se houver >1 cluster kind-*)
 #   --skip-load    Pula o load-generator (só fast check + observação)
 #   --intensity    Intensidade da carga (default: medium)
 #   --duration     Duração do load em minutos (default: 20)
@@ -31,6 +33,7 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 SKIP_LOAD=false
 INTENSITY="medium"
 DURATION_MIN=20
+TARGET_CONTEXT=""
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'
 RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
@@ -51,6 +54,7 @@ warn() { log_warn "$1"; WARNINGS=$((WARNINGS + 1)); }
 # =============================================================================
 while [[ $# -gt 0 ]]; do
   case $1 in
+    --context)    TARGET_CONTEXT="$2"; shift 2 ;;
     --skip-load)  SKIP_LOAD=true;      shift   ;;
     --intensity)  INTENSITY="$2";      shift 2 ;;
     --duration)   DURATION_MIN="$2";   shift 2 ;;
@@ -185,13 +189,34 @@ trap cleanup EXIT INT TERM
 # =============================================================================
 log_step "Passo 0 — Validações"
 
-CURRENT_CONTEXT=$(kubectl config current-context 2>&1 || echo "")
+KIND_CONTEXTS=$(kubectl config get-contexts -o name 2>/dev/null | grep "^kind-" || true)
+CURRENT_CONTEXT=$(kubectl config current-context 2>/dev/null || echo "")
 
-if [[ "$CURRENT_CONTEXT" != *"kind"* ]]; then
+if [ -n "$TARGET_CONTEXT" ]; then
+  # --context foi passado explicitamente: valida e usa
+  if ! echo "$TARGET_CONTEXT" | grep -q "^kind-"; then
+    log_warn "Contexto '${TARGET_CONTEXT}' não tem prefixo 'kind-'. Certifique-se de que é um cluster local."
+  fi
+  if ! kubectl config get-contexts "$TARGET_CONTEXT" &>/dev/null; then
+    log_err "Contexto '${TARGET_CONTEXT}' não existe no kubeconfig."
+    log_info "Contextos disponíveis:"
+    kubectl config get-contexts -o name 2>/dev/null | sed 's/^/    /' || true
+    exit 1
+  fi
+  if [ "$CURRENT_CONTEXT" != "$TARGET_CONTEXT" ]; then
+    log_info "Alternando para contexto especificado: ${TARGET_CONTEXT}"
+    kubectl config use-context "$TARGET_CONTEXT" &>/dev/null
+  fi
+  CURRENT_CONTEXT="$TARGET_CONTEXT"
+  log_ok "Contexto: ${CURRENT_CONTEXT}"
+
+elif [[ "$CURRENT_CONTEXT" == kind-* ]]; then
+  # Contexto atual já é Kind — usa diretamente
+  log_ok "Contexto Kind ativo: ${CURRENT_CONTEXT}"
+
+else
+  # Contexto atual não é Kind e --context não foi passado
   log_warn "Contexto atual '${CURRENT_CONTEXT}' não é Kind."
-
-  # Busca contextos Kind disponíveis
-  KIND_CONTEXTS=$(kubectl config get-contexts -o name 2>/dev/null | grep "^kind-" || true)
 
   if [ -z "$KIND_CONTEXTS" ]; then
     log_err "Nenhum contexto Kind encontrado no kubeconfig."
@@ -199,22 +224,23 @@ if [[ "$CURRENT_CONTEXT" != *"kind"* ]]; then
     exit 1
   fi
 
-  # Auto-alterna para o primeiro contexto Kind disponível
-  TARGET_CONTEXT=$(echo "$KIND_CONTEXTS" | head -1)
-  log_info "Contextos Kind disponíveis:"
-  echo "$KIND_CONTEXTS" | sed 's/^/    /'
-  log_info "Alternando automaticamente para: ${TARGET_CONTEXT}"
+  KIND_COUNT=$(echo "$KIND_CONTEXTS" | wc -l)
 
-  if kubectl config use-context "$TARGET_CONTEXT" &>/dev/null; then
+  if [ "$KIND_COUNT" -eq 1 ]; then
+    # Só um Kind disponível — alterna automaticamente
+    TARGET_CONTEXT=$(echo "$KIND_CONTEXTS" | head -1)
+    log_info "Único cluster Kind encontrado. Alternando automaticamente para: ${TARGET_CONTEXT}"
+    kubectl config use-context "$TARGET_CONTEXT" &>/dev/null
     CURRENT_CONTEXT="$TARGET_CONTEXT"
-    log_ok "Contexto alternado para: ${CURRENT_CONTEXT}"
+    log_ok "Contexto: ${CURRENT_CONTEXT}"
   else
-    log_err "Falha ao alternar contexto. Execute manualmente:"
-    log_info "kubectl config use-context ${TARGET_CONTEXT}"
+    # Múltiplos Kind — exige escolha explícita para não errar
+    log_err "Múltiplos clusters Kind encontrados. Use --context para especificar qual usar:"
+    echo "$KIND_CONTEXTS" | sed 's/^/    /'
+    log_info "Exemplo:"
+    log_info "  ./scripts/run-cycle-test.sh --context $(echo "$KIND_CONTEXTS" | head -1)"
     exit 1
   fi
-else
-  log_ok "Contexto Kind confirmado: ${CURRENT_CONTEXT}"
 fi
 
 # Verifica que o cluster está acessível (não só o kubeconfig)
