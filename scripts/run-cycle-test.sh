@@ -30,6 +30,10 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
+# Contexto Kind esperado para este projeto.
+# Sobrescreva com --context <nome> se o seu cluster tiver outro nome.
+DEFAULT_KIND_CONTEXT="kind-camunda-platform-local"
+
 SKIP_LOAD=false
 INTENSITY="medium"
 DURATION_MIN=20
@@ -211,33 +215,34 @@ if [ -n "$TARGET_CONTEXT" ]; then
   log_ok "Contexto: ${CURRENT_CONTEXT}"
 
 else
-  # --context não foi passado: decisão baseada em quantos kind-* existem no kubeconfig
-  if [ -z "$KIND_CONTEXTS" ]; then
-    log_err "Nenhum contexto Kind encontrado no kubeconfig."
-    log_info "Crie o cluster com: kind create cluster --name camunda-platform-local"
-    exit 1
-  fi
+  # --context não passado: usa o contexto padrão definido neste script
+  TARGET_CONTEXT="$DEFAULT_KIND_CONTEXT"
+  log_info "Usando contexto padrão do projeto: ${TARGET_CONTEXT}"
+  log_info "(Sobrescreva com --context <nome> se necessário)"
 
-  KIND_COUNT=$(echo "$KIND_CONTEXTS" | grep -c "." || true)
-
-  if [ "$KIND_COUNT" -eq 1 ]; then
-    # Único Kind no kubeconfig — usa sem ambiguidade, mas informa o usuário
-    TARGET_CONTEXT=$(echo "$KIND_CONTEXTS" | head -1)
-    log_info "Único cluster Kind encontrado no kubeconfig: ${TARGET_CONTEXT}"
-    log_info "Para especificar explicitamente: --context ${TARGET_CONTEXT}"
-    kubectl config use-context "$TARGET_CONTEXT" &>/dev/null
-    CURRENT_CONTEXT="$TARGET_CONTEXT"
-    log_ok "Contexto: ${CURRENT_CONTEXT}"
-  else
-    # Múltiplos Kind — nunca auto-seleciona, exige escolha explícita
-    log_err "Múltiplos clusters Kind encontrados. Use --context para evitar usar o cluster errado:"
-    echo "$KIND_CONTEXTS" | sed 's/^/    /'
+  if ! kubectl config get-contexts "$TARGET_CONTEXT" &>/dev/null; then
+    log_err "Contexto '${TARGET_CONTEXT}' não encontrado no kubeconfig."
     echo ""
-    log_info "Exemplo:"
-    log_info "  ./scripts/run-cycle-test.sh --context $(echo "$KIND_CONTEXTS" | head -1)"
-    log_info "  make cycle-test CONTEXT=$(echo "$KIND_CONTEXTS" | head -1)"
+    log_info "Contextos Kind disponíveis no kubeconfig:"
+    if [ -n "$KIND_CONTEXTS" ]; then
+      echo "$KIND_CONTEXTS" | sed 's/^/    /'
+    else
+      echo "    (nenhum)"
+    fi
+    echo ""
+    log_info "Para criar o cluster esperado:"
+    log_info "  kind create cluster --name camunda-platform-local"
+    log_info "Para usar um cluster existente com outro nome:"
+    log_info "  ./scripts/run-cycle-test.sh --context <nome>"
     exit 1
   fi
+
+  if [ "$CURRENT_CONTEXT" != "$TARGET_CONTEXT" ]; then
+    log_info "Alternando para: ${TARGET_CONTEXT}"
+    kubectl config use-context "$TARGET_CONTEXT" &>/dev/null
+  fi
+  CURRENT_CONTEXT="$TARGET_CONTEXT"
+  log_ok "Contexto: ${CURRENT_CONTEXT}"
 fi
 
 # Verifica que o cluster está acessível (não só o kubeconfig)
