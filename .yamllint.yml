@@ -1,0 +1,23 @@
+---
+# Configuração do yamllint para manifestos Kubernetes.
+# Regras relaxadas onde necessário para acomodar expressões PromQL longas
+# e o estilo de indentação padrão dos CRDs do kube-prometheus-stack.
+
+extends: default
+
+rules:
+  # PromQL dentro de 'expr:' ultrapassa 80 chars facilmente — sem limite aqui
+  line-length: disable
+
+  # Manifestos Kubernetes usam indentação de 2 espaços — padrão do campo
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: false
+
+  # Comentários sem espaço após '#' existem nos manifests gerados por tooling
+  comments:
+    min-spaces-from-content: 1
+
+  # Múltiplos documentos por arquivo não são usados, mas não é erro
+  document-start: disable
