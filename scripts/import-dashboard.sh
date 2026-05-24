@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # =============================================================================
-# 03-import-dashboard.sh
+# import-dashboard.sh
 #
 # Finalidade: importar o dashboard de forecasting direto via API do Grafana
 # (sem precisar clicar em import na UI)
 #
 # Uso:
-#   chmod +x 03-import-dashboard.sh
-#   ./03-import-dashboard.sh
+#   ./scripts/import-dashboard.sh
+#   GRAFANA_PASS=<senha> ./scripts/import-dashboard.sh
 #
 # Pré-requisito:
 #   kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80
@@ -138,5 +138,5 @@ echo ""
 echo -e "${CYAN}Próximos passos:${NC}"
 echo "  1. Abra o dashboard no Grafana"
 echo "  2. Aguarde pelo menos 5min de dados coletados"
-echo "  3. Execute ./02-load-generator.sh para gerar variação nas métricas"
+echo "  3. Execute make load ou ./scripts/load-generator.sh para gerar variação nas métricas"
 echo "  4. Observe os painéis de predict_linear e deriv() mudando em tempo real"

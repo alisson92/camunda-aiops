@@ -1,29 +1,36 @@
 # Makefile — camunda-aiops
 # Documentação executável das operações mais comuns do projeto.
 # Uso: make <target>
+#
+# Ambiente: todas as ferramentas Python são executadas via .venv local.
+# Crie o venv com: python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 
-.PHONY: run test smoke lint help
+PYTHON := .venv/bin/python
+PYTEST  := .venv/bin/pytest
+RUFF    := .venv/bin/ruff
+
+.PHONY: run test smoke lint load help
 
 # ── Agente ─────────────────────────────────────────────────────────────────────
 
 run: ## Inicia o agente (webhook receiver) em modo desenvolvimento
-	cd agent && uvicorn webhook_receiver:app --host 0.0.0.0 --port 5001 --reload
+	cd agent && ../.venv/bin/uvicorn webhook_receiver:app --host 0.0.0.0 --port 5001 --reload
 
 # ── Testes ─────────────────────────────────────────────────────────────────────
 
 test: ## Roda a suíte de testes automatizados com pytest
-	pytest
+	$(PYTEST)
 
 smoke: ## Envia os 3 alertas de teste para o Teams (critical, warning, info)
-	PYTHONPATH=agent python3 tests/test_teams_notifier.py
+	PYTHONPATH=agent $(PYTHON) tests/test_teams_notifier.py
 
 smoke-%: ## Envia um cenário específico: make smoke-critical | smoke-warning | smoke-info | smoke-resolved
-	PYTHONPATH=agent python3 tests/test_teams_notifier.py $*
+	PYTHONPATH=agent $(PYTHON) tests/test_teams_notifier.py $*
 
 # ── Qualidade ──────────────────────────────────────────────────────────────────
 
 lint: ## Valida sintaxe e estilo dos módulos Python (requer ruff)
-	ruff check agent/
+	$(RUFF) check agent/
 
 # ── Kubernetes / Observabilidade ───────────────────────────────────────────────
 
@@ -36,6 +43,9 @@ check-metrics: ## Inspeciona métricas disponíveis no Prometheus
 
 import-dashboard: ## Importa o dashboard de forecasting no Grafana
 	./scripts/import-dashboard.sh
+
+load: ## Gera carga sintética no Kind (medium, 30min) — use DURATION e INTENSITY para customizar
+	./scripts/load-generator.sh --duration $(or $(DURATION),30) --intensity $(or $(INTENSITY),medium)
 
 # ── Ajuda ──────────────────────────────────────────────────────────────────────
 
