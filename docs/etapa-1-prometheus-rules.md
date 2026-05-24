@@ -121,7 +121,7 @@ spec:
               A projeção linear indica que o pod {{ $labels.pod }} atingirá
               {{ $value | humanizePercentage }} de uso de heap nos próximos 15 minutos.
               Valor atual: {{ with query "jvm_memory_used_bytes{pod='{{ $labels.pod }}',area='heap'}" }}{{ . | first | value | humanize1024 }}B{{ end }}
-            runbook_url: "https://github.com/alisson92/grafana-ml-lab/docs/etapa-1-prometheus-rules.md"
+            runbook_url: "https://github.com/alisson92/camunda-aiops/docs/etapa-1-prometheus-rules.md"
 
         # Alerta 2: aceleração positiva de backpressure — crescendo mais rápido que o normal
         # deriv() retorna a taxa de variação por segundo; positivo = crescendo

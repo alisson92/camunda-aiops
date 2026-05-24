@@ -1,4 +1,4 @@
-# Makefile — grafana-ml-lab
+# Makefile — camunda-aiops
 # Documentação executável das operações mais comuns do projeto.
 # Uso: make <target>
 

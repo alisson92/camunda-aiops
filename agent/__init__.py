@@ -1,1 +1,1 @@
-# Pacote Python do agente AIOps — grafana-ml-lab
+# Pacote Python do agente AIOps — camunda-aiops

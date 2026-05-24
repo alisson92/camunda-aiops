@@ -1,4 +1,4 @@
-# Prompt Guidelines — grafana-ml-lab
+# Prompt Guidelines — camunda-aiops
 
 ## Estrutura da pasta
 

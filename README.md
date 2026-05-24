@@ -1,4 +1,4 @@
-# grafana-ml-lab
+# camunda-aiops
 
 Lab de AIOps para Kubernetes + Camunda 8.9 Self-Managed.
 
@@ -26,7 +26,7 @@ Microsoft Teams (Adaptive Card)
 ## Estrutura do projeto
 
 ```
-grafana-ml-lab/
+camunda-aiops/
 ├── agent/                        # pacote Python do agente AIOps
 │   ├── config.py                 # ponto único de configuração (env vars)
 │   ├── reactive_agent.py         # loop agentic com tool use (Ollama)

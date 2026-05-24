@@ -136,7 +136,7 @@ O token gerado (`key`) é o valor de `GRAFANA_API_KEY`. `secondsToLive: 0` = sem
 O servidor só carrega ao **reiniciar a sessão** do Claude Code:
 
 ```bash
-cd ~/personal/projects/grafana-ml-lab
+cd ~/personal/projects/camunda-aiops
 claude
 ```
 

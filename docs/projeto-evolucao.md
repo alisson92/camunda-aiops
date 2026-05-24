@@ -1,4 +1,4 @@
-# Evolução do Projeto — grafana-ml-lab
+# Evolução do Projeto — camunda-aiops
 
 Este documento registra decisões técnicas, refatorações e melhorias aplicadas ao projeto.
 Cada entrada documenta: o que foi feito, por que foi feito e as fontes consultadas.

@@ -64,7 +64,7 @@ _SCENARIOS: dict[str, dict] = {
         "alert_annotations": {
             "summary":     "Zeebe heap (G1 Old Gen) projetado acima de 600 MB em 30min",
             "description": "Alerta preditivo — análise gerada pelo agente AIOps local.",
-            "runbook_url": "https://github.com/alisson92/grafana-ml-lab/blob/main/docs/etapa-1-prometheus-rules.md",
+            "runbook_url": "https://github.com/alisson92/camunda-aiops/blob/main/docs/etapa-1-prometheus-rules.md",
         },
         "status":   "firing",
         "analysis": _ANALYSIS,
@@ -109,7 +109,7 @@ _SCENARIOS: dict[str, dict] = {
         "alert_annotations": {
             "summary":     "Zeebe heap (G1 Old Gen) projetado acima de 600 MB em 30min",
             "description": "Alerta resolvido — heap voltou ao nível normal após restart.",
-            "runbook_url": "https://github.com/alisson92/grafana-ml-lab/blob/main/docs/etapa-1-prometheus-rules.md",
+            "runbook_url": "https://github.com/alisson92/camunda-aiops/blob/main/docs/etapa-1-prometheus-rules.md",
         },
         "status":   "resolved",
         "analysis": "",
