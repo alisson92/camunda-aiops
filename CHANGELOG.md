@@ -17,7 +17,7 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 - `Makefile` targets `cycle-test` e `cycle-test-fast` para acionar o ciclo via `make`
 - `.github/workflows/ci.yml` job `shell-lint` — ShellCheck com `severity=warning` via `ludeeus/action-shellcheck@2.0.0`
 - `.gitignore` entradas `.coverage` e `htmlcov/`
-- `pyproject.toml` — dependência `pytest-cov>=5.0.0`; seções `[tool.coverage.run]` e `[tool.coverage.report]` com `fail_under = 95`
+- `pyproject.toml` — dependência `pytest-cov>=5.0.0`; seções `[tool.coverage.run]` e `[tool.coverage.report]` com `fail_under = 100`
 - `agent/config.py` — ponto único de configuração; carrega `.env` e expõe constantes tipadas
 - `agent/__init__.py` — torna `agent/` um pacote Python formal
 - `tests/fixtures/` — fixtures de payload do Alertmanager (movidas de `agent/test-fixtures/`)

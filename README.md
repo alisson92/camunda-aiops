@@ -164,7 +164,7 @@ pytest --cov --cov-report=term-missing
 make smoke
 ```
 
-Cobertura atual: **100%** (76 testes unitários). Threshold mínimo configurado: `fail_under = 95`.
+Cobertura atual: **100%** (82 testes unitários). Threshold mínimo configurado: `fail_under = 100`.
 
 Todos os testes unitários mockam dependências externas (Prometheus, Ollama, Teams, Alertmanager)
 e rodam sem nenhuma infraestrutura local.
@@ -265,7 +265,7 @@ Três jobs paralelos a cada push/PR:
 
 | Job | O que valida |
 |---|---|
-| `python` | `pytest --cov` (76 testes, threshold 95%, cobertura 100%) + `ruff` |
+| `python` | `pytest --cov` (82 testes, threshold 100%, cobertura 100%) + `ruff` |
 | `yaml-lint` | `yamllint` em manifestos Kubernetes e configs |
 | `shell-lint` | ShellCheck `severity=warning` em todos os scripts |
 
