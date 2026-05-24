@@ -3,18 +3,24 @@ Servidor FastAPI que recebe payloads do Alertmanager e aciona o agente reativo.
 
 Uso:
   uvicorn webhook_receiver:app --host 0.0.0.0 --port 5001
+  # ou via Makefile:
+  make run
 """
 
 import json
-import os
+import logging
 from datetime import datetime, timedelta, timezone
-from fastapi import FastAPI, Query, Request, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+
 import httpx
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+
+from config import ALERTMANAGER_URL, setup_logging
 from reactive_agent import run_agent
 from teams_notifier import send_alert_to_teams
 
-_ALERTMANAGER_URL = os.environ.get("ALERTMANAGER_URL", "http://localhost:9093")
+setup_logging()
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Camunda AIOps Webhook Receiver")
 
@@ -41,19 +47,17 @@ async def alertmanager_webhook(request: Request):
 
     analyses = []
     for alert in alerts:
-        status = alert.get("status", "firing")
-        labels = alert.get("labels", {})
+        status      = alert.get("status", "firing")
+        labels      = alert.get("labels", {})
         annotations = alert.get("annotations", {})
-        alert_name = labels.get("alertname", "unknown")
+        alert_name  = labels.get("alertname", "unknown")
+        starts_at   = alert.get("startsAt", "")
+        ends_at     = alert.get("endsAt", "")
 
-        print(f"\n{'='*60}")
-        print(f"Alerta recebido: {alert_name} | status: {status}")
-        print(f"Labels: {json.dumps(labels, ensure_ascii=False)}")
-        print(f"{'='*60}")
+        logger.info("Alerta recebido: %s | status: %s | labels: %s", alert_name, status, json.dumps(labels))
 
-        # Apenas alertas Camunda/Zeebe disparam análise
         if not any(kw in alert_name for kw in ("Zeebe", "Camunda")):
-            print(f"[webhook] Alerta {alert_name} ignorado (fora do escopo Camunda)")
+            logger.debug("Alerta %s ignorado (fora do escopo Camunda)", alert_name)
             continue
 
         analysis = run_agent(
@@ -63,10 +67,7 @@ async def alertmanager_webhook(request: Request):
             status=status,
         )
 
-        print(f"\n{'='*60}")
-        print("ANÁLISE DO AGENTE:")
-        print(analysis)
-        print(f"{'='*60}\n")
+        logger.info("Análise concluída para %s:\n%s", alert_name, analysis)
 
         send_alert_to_teams(
             alert_name=alert_name,
@@ -74,6 +75,8 @@ async def alertmanager_webhook(request: Request):
             alert_annotations=annotations,
             status=status,
             analysis=analysis,
+            starts_at=starts_at,
+            ends_at=ends_at,
         )
 
         analyses.append({"alertname": alert_name, "status": status, "analysis": analysis})
@@ -92,10 +95,7 @@ async def create_silence(
     """
     Cria um silence no Alertmanager para o alerta informado.
     Acionado via botão do card do Teams.
-
-    Exemplos de duration: 30m, 1h, 4h, 24h
     """
-    # Converte duração simples (ex: 1h, 30m) para timedelta
     unit = duration[-1]
     try:
         value = int(duration[:-1])
@@ -107,31 +107,34 @@ async def create_silence(
     elif unit == "m":
         delta = timedelta(minutes=value)
     else:
-        raise HTTPException(status_code=400, detail=f"Unidade não suportada: {unit}. Use h (horas) ou m (minutos).")
+        raise HTTPException(status_code=400, detail=f"Unidade não suportada: {unit}. Use h ou m.")
 
-    now = datetime.now(timezone.utc)
+    now     = datetime.now(timezone.utc)
     ends_at = now + delta
 
     silence_payload = {
         "matchers": [{"name": "alertname", "value": alert, "isRegex": False}],
-        "startsAt": now.isoformat(),
-        "endsAt": ends_at.isoformat(),
+        "startsAt":  now.isoformat(),
+        "endsAt":    ends_at.isoformat(),
         "createdBy": "aiops-agent",
-        "comment": f"Silence criado via card Teams — duração: {duration}",
+        "comment":   f"Silence criado via card Teams — duração: {duration}",
     }
 
     try:
         resp = httpx.post(
-            f"{_ALERTMANAGER_URL}/api/v2/silences",
+            f"{ALERTMANAGER_URL}/api/v2/silences",
             json=silence_payload,
             timeout=10,
         )
         resp.raise_for_status()
         silence_id = resp.json().get("silenceID", "—")
     except httpx.HTTPError as e:
+        logger.error("Falha ao criar silence para %s: %s", alert, e)
         raise HTTPException(status_code=502, detail=f"Falha ao criar silence no Alertmanager: {e}")
 
-    ends_local = ends_at.astimezone(timezone(timedelta(hours=-3))).strftime("%d/%m/%Y %H:%M (Brasília)")
+    ends_local = ends_at.astimezone(timezone(timedelta(hours=-3))).strftime("%d/%m/%Y %H:%M")
+    logger.info("Silence criado: alerta=%s duração=%s id=%s", alert, duration, silence_id)
+
     return f"""
     <html><body style="font-family:sans-serif;max-width:480px;margin:40px auto;text-align:center">
       <h2>🔕 Silence criado</h2>

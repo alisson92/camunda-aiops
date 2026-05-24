@@ -3,9 +3,12 @@
 
 # Python
 __pycache__/
+**/__pycache__/
 *.py[cod]
 .venv/
 *.egg-info/
+dist/
+build/
 
 # macOS / Windows
 .DS_Store
@@ -19,6 +22,7 @@ Thumbs.db
 # Variáveis de ambiente (nunca commitar credenciais)
 .env
 .env.*
+!.env.example
 
 # Claude Code — configuração local com secrets (tokens de service account)
 .claude/settings.local.json

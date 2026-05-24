@@ -33,15 +33,21 @@ kubectl get secret -n monitoring kube-prometheus-stack-grafana \
 
 ```bash
 # Inspecionar quais métricas estão sendo coletadas
-./scripts/01-check-metrics.sh
+./scripts/check-metrics.sh
 
 # Importar o dashboard (senha via env var, nunca hardcoded)
-GRAFANA_PASS=<senha> ./scripts/03-import-dashboard.sh
+GRAFANA_PASS=<senha> ./scripts/import-dashboard.sh
 
 # Gerar carga sintética com sazonalidade (verifica contexto Kind automaticamente)
-./scripts/02-load-generator.sh --duration 30 --intensity medium
+./scripts/load-generator.sh --duration 30 --intensity medium
 # Intensidades: low | medium | high
 # --dry-run para ver o que seria feito sem executar
+
+# Iniciar o agente (webhook receiver)
+make run
+
+# Smoke test de notificações Teams
+make smoke
 ```
 
 Dashboard após import: `http://localhost:3000/d/camunda-local-forecasting/`
@@ -49,9 +55,12 @@ Dashboard após import: `http://localhost:3000/d/camunda-local-forecasting/`
 ## Arquitetura
 
 ```
-scripts/          Scripts sequenciais: 01 (check) → 03 (import) → 02 (carga)
+agent/            Pacote Python do agente AIOps (config, tools, notifier, webhook)
+prompts/          System prompts versionados (v1, v2, ...) + GUIDELINES.md
+scripts/          Scripts operacionais: check-metrics, load-generator, import-dashboard
 dashboards/       camunda-forecasting.json — 11 painéis divididos em 2 seções
-docs/             Documentação completa: decisões técnicas, bugs, caminho para prod
+tests/            Testes e smoke tests; fixtures em tests/fixtures/
+docs/             Documentação: etapas, fixes, evolução do projeto
 ```
 
 O dashboard tem duas seções:
@@ -80,9 +89,9 @@ prometheus:
 
 ## Cuidados importantes
 
-- `02-load-generator.sh` bloqueia execução se o contexto kubectl não for `kind-*` — proteção contra rodar em produção EKS acidentalmente.
+- `load-generator.sh` bloqueia execução se o contexto kubectl não for `kind-*` — proteção contra rodar em produção EKS acidentalmente.
 - O script usa `trap cleanup EXIT INT TERM` para deletar o namespace `load-test` ao sair (Ctrl+C ou fim da duração).
-- `03-import-dashboard.sh` não aceita senha como argumento posicional — usar `GRAFANA_PASS=` env var ou flag `--password`.
+- `import-dashboard.sh` não aceita senha como argumento posicional — usar `GRAFANA_PASS=` env var ou flag `--password`.
 - O arquivo `dashboards/camunda-forecasting.json` deve ter o campo `id` ausente ou nulo para que o Grafana trate como criação (não update de um dashboard existente com outro ID).
 
 ## Próximo nível planejado

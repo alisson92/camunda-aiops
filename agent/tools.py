@@ -3,9 +3,13 @@ Ferramentas Prometheus chamadas pelo agente via tool use.
 Cada função bate diretamente na HTTP API do Prometheus local (porta 9090).
 """
 
+import logging
+
 import httpx
 
-PROMETHEUS_URL = "http://localhost:9090"
+from config import PROMETHEUS_URL
+
+logger = logging.getLogger(__name__)
 
 
 def query_prometheus_instant(expr: str) -> dict:
@@ -22,7 +26,11 @@ def query_prometheus_instant(expr: str) -> dict:
             return {"error": f"Prometheus retornou status={data['status']}"}
         results = data["data"]["result"]
         if not results:
-            return {"empty": True, "expr": expr, "hint": "Nenhuma série encontrada. Verifique labels e se o target está ativo."}
+            return {
+                "empty": True,
+                "expr": expr,
+                "hint": "Nenhuma série encontrada. Verifique labels e se o target está ativo.",
+            }
         return {
             "resultType": data["data"]["resultType"],
             "results": [
@@ -31,6 +39,7 @@ def query_prometheus_instant(expr: str) -> dict:
             ],
         }
     except httpx.HTTPError as e:
+        logger.error("Falha na query instant '%s': %s", expr, e)
         return {"error": str(e)}
 
 
@@ -61,6 +70,7 @@ def query_prometheus_range(expr: str, start: str, end: str, step: str = "60") ->
             ],
         }
     except httpx.HTTPError as e:
+        logger.error("Falha na query range '%s': %s", expr, e)
         return {"error": str(e)}
 
 
@@ -86,14 +96,15 @@ def get_alert_rules() -> dict:
                     })
         return {"rules": camunda_rules, "total": len(camunda_rules)}
     except httpx.HTTPError as e:
+        logger.error("Falha ao buscar alert rules: %s", e)
         return {"error": str(e)}
 
 
 # Mapa nome → função, usado pelo agente para despachar chamadas de ferramenta
 TOOL_DISPATCH = {
     "query_prometheus_instant": query_prometheus_instant,
-    "query_prometheus_range": query_prometheus_range,
-    "get_alert_rules": get_alert_rules,
+    "query_prometheus_range":   query_prometheus_range,
+    "get_alert_rules":          get_alert_rules,
 }
 
 # Schemas no formato OpenAI / Ollama (compatível com openai SDK)
@@ -129,10 +140,10 @@ TOOL_SCHEMAS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "expr": {"type": "string", "description": "Expressão PromQL"},
+                    "expr":  {"type": "string", "description": "Expressão PromQL"},
                     "start": {"type": "string", "description": "Início em Unix timestamp ou relativo, ex: 'now-30m'"},
-                    "end": {"type": "string", "description": "Fim em Unix timestamp ou relativo, ex: 'now'"},
-                    "step": {"type": "string", "description": "Intervalo em segundos entre pontos, ex: '60'"},
+                    "end":   {"type": "string", "description": "Fim em Unix timestamp ou relativo, ex: 'now'"},
+                    "step":  {"type": "string", "description": "Intervalo em segundos entre pontos, ex: '60'"},
                 },
                 "required": ["expr", "start", "end"],
             },
