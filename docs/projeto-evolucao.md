@@ -190,20 +190,20 @@ patch("reactive_agent.run_agent", ...)
 
 ### 2. pytest-cov + threshold de cobertura no CI
 
-**O que:** `pytest-cov>=5.0.0` adicionado como dependência de dev. Threshold de 70%
+**O que:** `pytest-cov>=5.0.0` adicionado como dependência de dev. Threshold de 95%
 configurado em `pyproject.toml`:
 
 ```toml
 [tool.coverage.report]
 show_missing = true
-fail_under = 70
+fail_under = 95
 ```
 
 CI atualizado para rodar `pytest --cov --cov-report=term-missing`.
 
 **Por que:** `fail_under` transforma cobertura em um gate de qualidade — o CI falha se a
-cobertura cair abaixo do threshold. 70% é conservador o suficiente para não bloquear
-desenvolvimento, mas alto o suficiente para detectar regressões sérias.
+cobertura cair abaixo do threshold. 95% garante que qualquer linha nova de código precisa
+de teste antes de chegar à main. Cobertura atual: 100% (76 testes, 0 linhas descobertas).
 
 **Fonte:** [pytest-cov — Configuration](https://pytest-cov.readthedocs.io/en/latest/config.html)
 

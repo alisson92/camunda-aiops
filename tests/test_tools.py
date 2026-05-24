@@ -110,6 +110,14 @@ class TestQueryPrometheusRange:
 
         assert result["empty"] is True
 
+    def test_returns_error_on_non_success_status(self):
+        payload = {"status": "error", "data": {"resultType": "matrix", "result": []}}
+        with patch("httpx.get", return_value=_mock_response(payload)):
+            result = query_prometheus_range("bad{}", "now-30m", "now")
+
+        assert "error" in result
+        assert "status" in result["error"]
+
     def test_returns_error_on_http_exception(self):
         with patch("httpx.get", side_effect=httpx.HTTPError("timeout")):
             result = query_prometheus_range("up", "now-30m", "now")
