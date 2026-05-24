@@ -21,8 +21,8 @@ run: ## Inicia o agente (webhook receiver) em modo desenvolvimento
 
 # ── Testes ─────────────────────────────────────────────────────────────────────
 
-test: ## Roda testes unitários com cobertura (exclui integração)
-	$(PYTEST) --cov --cov-report=term-missing -m "not integration"
+test: ## Roda testes unitários com cobertura (exclui integração e e2e)
+	$(PYTEST) --cov --cov-report=term-missing -m "not integration and not e2e"
 
 test-integration: ## Roda testes de integração contra containers Docker reais
 	$(PYTEST) -m integration -v

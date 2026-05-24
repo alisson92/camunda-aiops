@@ -9,7 +9,7 @@ esses testes garantem que os fixtures permanecem válidos e consistentes.
 import json
 from pathlib import Path
 
-FIXTURES_DIR = Path(__file__).parent / "fixtures"
+FIXTURES_DIR = Path(__file__).parent.parent / "fixtures"
 
 ALERT_FIXTURES = [
     "zeebe-memory-alert.json",

@@ -28,8 +28,8 @@ jobs:
         run: ruff check agent/
 
       - name: Testes — pytest + cobertura
-        run: pytest --cov --cov-report=term-missing -m "not integration"
-        # -m "not integration" exclui testes que requerem Docker — esses rodam no job integration
+        run: pytest --cov --cov-report=term-missing -m "not integration and not e2e"
+        # -m "not integration and not e2e" exclui testes que requerem Docker — esses rodam nos jobs integration e e2e
         # fail_under=100 configurado em pyproject.toml: qualquer linha sem teste bloqueia o merge
 
   # ── Integração: Testcontainers (Prometheus real) ──────────────────────────

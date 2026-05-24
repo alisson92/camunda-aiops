@@ -51,11 +51,13 @@ camunda-aiops/
 │   └── test-port-metrics.sh      # testa endpoints /actuator/prometheus
 ├── tests/
 │   ├── fixtures/                 # payloads de alerta para testes
-│   ├── test_config.py            # 6 testes — carregamento do .env
-│   ├── test_webhook_receiver.py  # 22 testes — endpoints FastAPI
-│   ├── test_reactive_agent.py    # 12 testes — loop agentic com tool use
-│   ├── test_tools.py             # 22 testes — queries Prometheus + _resolve_ts
-│   ├── test_teams_notifier_unit.py  # 19 testes — Adaptive Card e helpers
+│   ├── unit/                     # 88 testes unitários (sem infraestrutura)
+│   │   ├── test_config.py        # 6 testes — carregamento do .env
+│   │   ├── test_webhook_receiver.py  # 22 testes — endpoints FastAPI
+│   │   ├── test_reactive_agent.py    # 12 testes — loop agentic com tool use
+│   │   ├── test_tools.py             # 22 testes — queries Prometheus + _resolve_ts
+│   │   ├── test_teams_notifier_unit.py  # 19 testes — Adaptive Card e helpers
+│   │   └── test_alert_fixtures.py    # 7 testes — estrutura dos fixtures JSON
 │   ├── test_teams_notifier.py    # smoke test de notificações Teams (requer .env)
 │   ├── integration/              # testes contra Prometheus real (Testcontainers)
 │   └── e2e/                      # ciclo completo: webhook → agente → LLM → Teams
