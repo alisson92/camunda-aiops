@@ -27,7 +27,7 @@ app = FastAPI(title="Camunda AIOps Webhook Receiver")
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
 @app.post("/webhook")

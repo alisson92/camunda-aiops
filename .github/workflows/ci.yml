@@ -27,10 +27,10 @@ jobs:
       - name: Lint — ruff
         run: ruff check agent/
 
-      - name: Testes — pytest
-        run: pytest
-        # O smoke test (test_teams_notifier.py) envia requests reais ao Teams
-        # e não tem funções test_*, portanto o pytest o ignora automaticamente.
+      - name: Testes — pytest + cobertura
+        run: pytest --cov --cov-report=term-missing
+        # --cov usa [tool.coverage.run] do pyproject.toml (source=agent, fail_under=70)
+        # O smoke test (test_teams_notifier.py) não tem funções test_* — ignorado pelo pytest.
 
   # ── YAML: sintaxe dos manifestos Kubernetes ────────────────────────────────
   yaml-lint:
