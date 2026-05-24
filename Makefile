@@ -12,7 +12,7 @@ PYTHON := .venv/bin/python
 PYTEST  := .venv/bin/pytest
 RUFF    := .venv/bin/ruff
 
-.PHONY: run test smoke lint load help
+.PHONY: run test test-integration smoke lint load help
 
 # ── Agente ─────────────────────────────────────────────────────────────────────
 
@@ -21,8 +21,11 @@ run: ## Inicia o agente (webhook receiver) em modo desenvolvimento
 
 # ── Testes ─────────────────────────────────────────────────────────────────────
 
-test: ## Roda a suíte de testes automatizados com pytest
-	$(PYTEST)
+test: ## Roda testes unitários com cobertura (exclui integração)
+	$(PYTEST) --cov --cov-report=term-missing -m "not integration"
+
+test-integration: ## Roda testes de integração contra containers Docker reais
+	$(PYTEST) -m integration -v
 
 smoke: ## Envia os 3 alertas de teste para o Teams (critical, warning, info)
 	PYTHONPATH=agent $(PYTHON) tests/test_teams_notifier.py

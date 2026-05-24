@@ -5,12 +5,13 @@ Todas as chamadas HTTP ao Prometheus são mockadas via unittest.mock.patch,
 garantindo que os testes rodem sem port-forward ou cluster Kind ativo.
 """
 
+import time
 from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
 
-from tools import get_alert_rules, query_prometheus_instant, query_prometheus_range
+from tools import _resolve_ts, get_alert_rules, query_prometheus_instant, query_prometheus_range
 
 
 def _mock_response(json_data: dict, status_code: int = 200) -> MagicMock:
@@ -20,6 +21,48 @@ def _mock_response(json_data: dict, status_code: int = 200) -> MagicMock:
     mock.raise_for_status.return_value = None
     mock.status_code = status_code
     return mock
+
+
+# ---------------------------------------------------------------------------
+# _resolve_ts
+# ---------------------------------------------------------------------------
+
+
+class TestResolveTs:
+    def test_now_returns_current_unix_timestamp(self):
+        before = int(time.time())
+        result = int(_resolve_ts("now"))
+        after = int(time.time())
+        assert before <= result <= after
+
+    def test_now_minus_minutes(self):
+        before = int(time.time())
+        result = int(_resolve_ts("now-30m"))
+        assert abs(result - (before - 30 * 60)) <= 2
+
+    def test_now_minus_hours(self):
+        before = int(time.time())
+        result = int(_resolve_ts("now-1h"))
+        assert abs(result - (before - 3600)) <= 2
+
+    def test_now_minus_seconds(self):
+        before = int(time.time())
+        result = int(_resolve_ts("now-90s"))
+        assert abs(result - (before - 90)) <= 2
+
+    def test_unix_timestamp_string_passes_through(self):
+        assert _resolve_ts("1716547200") == "1716547200"
+
+    def test_range_query_timestamps_are_resolved(self):
+        """Valida que query_prometheus_range resolve 'now-Xm' antes de enviar ao Prometheus."""
+        payload = {"status": "success", "data": {"resultType": "matrix", "result": []}}
+        with patch("httpx.get", return_value=_mock_response(payload)) as mock_get:
+            query_prometheus_range("up", "now-30m", "now")
+
+        params = mock_get.call_args[1]["params"]
+        # Os valores devem ser strings numéricas (Unix timestamps), não "now-*"
+        assert params["start"].isdigit()
+        assert params["end"].isdigit()
 
 
 # ---------------------------------------------------------------------------

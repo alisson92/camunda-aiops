@@ -4,12 +4,31 @@ Cada função bate diretamente na HTTP API do Prometheus local (porta 9090).
 """
 
 import logging
+import time as _time
 
 import httpx
 
 from config import PROMETHEUS_URL
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_ts(ts: str) -> str:
+    """Converte timestamps relativos (now, now-30m, now-1h) para Unix timestamp.
+
+    A Prometheus HTTP API aceita timestamps relativos em /api/v1/query, mas
+    exige Unix timestamp ou RFC3339 em /api/v1/query_range. Esta função
+    normaliza a entrada para que ambos os endpoints recebam um formato válido.
+    """
+    if not ts.startswith("now"):
+        return ts
+    if ts == "now":
+        return str(int(_time.time()))
+    offset = ts[len("now-"):]
+    units = {"s": 1, "m": 60, "h": 3600}
+    unit = offset[-1]
+    seconds = int(offset[:-1]) * units[unit] if unit in units else int(offset)
+    return str(int(_time.time() - seconds))
 
 
 def query_prometheus_instant(expr: str) -> dict:
@@ -48,7 +67,7 @@ def query_prometheus_range(expr: str, start: str, end: str, step: str = "60") ->
     try:
         resp = httpx.get(
             f"{PROMETHEUS_URL}/api/v1/query_range",
-            params={"query": expr, "start": start, "end": end, "step": step},
+            params={"query": expr, "start": _resolve_ts(start), "end": _resolve_ts(end), "step": step},
             timeout=15,
         )
         resp.raise_for_status()
