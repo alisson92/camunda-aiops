@@ -21,6 +21,7 @@ dev = [
     "pytest-cov>=5.0.0",
     "ruff>=0.4.0",
     "testcontainers>=4.7.0",
+    "pytest-httpserver>=1.0.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -34,6 +35,7 @@ testpaths  = ["tests"]
 addopts    = "-v"
 markers = [
     "integration: testes de integração que requerem Docker (Testcontainers)",
+    "e2e: testes end-to-end do ciclo completo (Docker + servidor HTTP mock)",
 ]
 
 [tool.coverage.run]

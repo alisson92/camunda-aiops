@@ -12,7 +12,7 @@ PYTHON := .venv/bin/python
 PYTEST  := .venv/bin/pytest
 RUFF    := .venv/bin/ruff
 
-.PHONY: run test test-integration smoke lint load help
+.PHONY: run test test-integration test-e2e smoke lint load help
 
 # ── Agente ─────────────────────────────────────────────────────────────────────
 
@@ -26,6 +26,9 @@ test: ## Roda testes unitários com cobertura (exclui integração)
 
 test-integration: ## Roda testes de integração contra containers Docker reais
 	$(PYTEST) -m integration -v
+
+test-e2e: ## Roda testes E2E do ciclo completo (Docker + mock HTTP)
+	$(PYTEST) -m e2e -v
 
 smoke: ## Envia os 3 alertas de teste para o Teams (critical, warning, info)
 	PYTHONPATH=agent $(PYTHON) tests/test_teams_notifier.py
