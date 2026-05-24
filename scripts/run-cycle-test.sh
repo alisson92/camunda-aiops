@@ -89,8 +89,7 @@ free_port() {
     log_warn "Porta $port ocupada ($label). PIDs: $pids — liberando..."
     lsof -ti:"$port" | xargs kill -9 2>/dev/null || true
     # Aguarda a porta ser liberada (até 5s)
-    local i
-    for i in $(seq 1 5); do
+    for _ in $(seq 1 5); do
       if ! lsof -ti:"$port" &>/dev/null; then
         log_ok "Porta $port liberada."
         return 0
@@ -112,8 +111,7 @@ wait_for_port() {
   local port="$1"
   local label="$2"
   local max="${3:-20}"
-  local i
-  for i in $(seq 1 "$max"); do
+  for _ in $(seq 1 "$max"); do
     if curl -sf "http://localhost:${port}/-/ready"           -o /dev/null 2>/dev/null \
     || curl -sf "http://localhost:${port}/api/v1/status/runtimeinfo" -o /dev/null 2>/dev/null \
     || curl -sf "http://localhost:${port}/api/v2/status"     -o /dev/null 2>/dev/null \
@@ -151,7 +149,7 @@ start_port_forward() {
     kubectl port-forward -n "$ns" "svc/${svc}" "${local_port}:${remote_port}" \
       >> "$PF_LOG" 2>&1 &
     local pf_pid=$!
-    BG_PIDS+=($pf_pid)
+    BG_PIDS+=("$pf_pid")
 
     if wait_for_port "$local_port" "$label" 10; then
       return 0
@@ -159,7 +157,7 @@ start_port_forward() {
 
     # O processo já pode ter morrido — remove da lista de PIDs gerenciados
     kill "$pf_pid" 2>/dev/null || true
-    BG_PIDS=("${BG_PIDS[@]/$pf_pid/}")
+    BG_PIDS=("${BG_PIDS[@]/"$pf_pid"/}")
 
     if [ "$attempt" -lt 3 ]; then
       log_warn "$label não respondeu na tentativa $attempt. Retentando em 3s..."
@@ -295,7 +293,7 @@ fi
 # Aguarda o Operator confirmar (até 30s, não bloqueia se demorar)
 log_info "Aguardando Prometheus Operator recarregar..."
 RULE_LOADED=false
-for i in $(seq 1 6); do
+for _ in $(seq 1 6); do
   RULE_COUNT=$(kubectl get prometheusrule camunda-forecasting-alerts -n monitoring \
     -o jsonpath='{.spec.groups[*].rules}' 2>/dev/null | grep -o '"alert"' | wc -l || echo 0)
   if [ "$RULE_COUNT" -gt 0 ]; then
@@ -338,7 +336,7 @@ else
     log_info "Aguardando Ollama iniciar (até 15s)..."
 
     OLLAMA_OK=false
-    for i in $(seq 1 15); do
+    for _ in $(seq 1 15); do
       if curl -sf "${OLLAMA_URL}/api/tags" -o /dev/null 2>/dev/null; then
         log_ok "Ollama iniciado com sucesso."
         OLLAMA_OK=true
@@ -401,12 +399,12 @@ cd "${PROJECT_DIR}/agent" && \
     --log-level info \
     >> "$AGENT_LOG" 2>&1 &
 AGENT_PID=$!
-BG_PIDS+=($AGENT_PID)
-cd "$PROJECT_DIR"
+BG_PIDS+=("$AGENT_PID")
+cd "$PROJECT_DIR" || exit 1
 
 log_info "Aguardando agente subir (até 15s)..."
 AGENT_UP=false
-for i in $(seq 1 15); do
+for _ in $(seq 1 15); do
   if curl -sf http://localhost:5001/health -o /dev/null 2>/dev/null; then
     HEALTH=$(curl -s http://localhost:5001/health 2>/dev/null || echo "{}")
     log_ok "Agente respondendo: ${HEALTH}"
@@ -461,7 +459,7 @@ else
       log_ok "Fast check OK (HTTP 200) — ${MSG}"
       log_info "Aguardando análise do LLM (pode levar alguns segundos)..."
       # Aguarda até 30s pela análise aparecer no log
-      for i in $(seq 1 30); do
+      for _ in $(seq 1 30); do
         if grep -q "Análise concluída" "$AGENT_LOG" 2>/dev/null; then
           break
         fi
@@ -504,7 +502,7 @@ else
       --duration "$DURATION_MIN" \
       --intensity "$INTENSITY" &
     LOAD_PID=$!
-    BG_PIDS+=($LOAD_PID)
+    BG_PIDS+=("$LOAD_PID")
     log_ok "Load-generator iniciado (PID ${LOAD_PID})."
   fi
 fi

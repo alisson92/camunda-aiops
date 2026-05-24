@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 for item in \
   "camunda-connectors:http:8080" \
   "camunda-identity:metrics:8082" \

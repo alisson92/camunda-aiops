@@ -38,7 +38,6 @@ NAMESPACE_LOAD="load-test"
 # Portas dos serviços (requer port-forward ativo)
 OPERATE_URL="http://localhost:8081"
 TASKLIST_URL="http://localhost:8082"
-ZEEBE_REST_URL="http://localhost:8080"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; RED='\033[0;31m'; NC='\033[0m'
 
@@ -196,22 +195,17 @@ http_loop() {
   local end_time=$(($(date +%s) + DURATION_SEC))
 
   while [ "$(date +%s)" -lt "$end_time" ]; do
-    # Health check (sempre responde 200)
-    curl -sf "${url}/actuator/health" -o /dev/null 2>/dev/null || true
-    # Metrics endpoint (mais pesado — gera mais processamento)
+    log_info "[${label}] request cycle"
+    curl -sf "${url}/actuator/health"   -o /dev/null 2>/dev/null || true
     curl -sf "${url}/actuator/prometheus" -o /dev/null 2>/dev/null || true
-    # Uma rota da aplicação (pode retornar 401 sem auth — isso é intencional)
     curl -sf "${url}/api/v1/process-instances?pageSize=10" -o /dev/null 2>/dev/null || true
     sleep "${interval}"
   done
 }
 
-# Roda em background — os PIDs serão encerrados pelo trap
+# Roda em background — os PIDs serão encerrados pelo trap ao final do script
 http_loop "${OPERATE_URL}"  "operate"  "${HTTP_INTERVAL}" &
-HTTP_PID_1=$!
-
 http_loop "${TASKLIST_URL}" "tasklist" "${HTTP_INTERVAL}" &
-HTTP_PID_2=$!
 
 # =============================================================================
 # Fase 4: Variação de pods (scale up/down) para gerar métricas kube_*
@@ -236,7 +230,6 @@ scale_cycle() {
   done
 }
 scale_cycle &
-SCALE_PID=$!
 
 # =============================================================================
 # Fase 5: Monitor de progresso

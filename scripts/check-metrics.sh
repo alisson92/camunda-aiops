@@ -34,7 +34,7 @@ log_info()    { echo -e "  ${CYAN}→${NC} $1"; }
 list_metrics() {
   local prefix="$1"
   local description="$2"
-  log_info "Buscando métricas com prefixo: ${prefix}"
+  log_info "Buscando métricas — ${description} (prefixo: ${prefix})"
   local result
   result=$(curl -sf "${PROMETHEUS_URL}/api/v1/label/__name__/values" \
     | python3 -c "

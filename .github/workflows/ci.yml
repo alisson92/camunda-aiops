@@ -32,6 +32,21 @@ jobs:
         # --cov usa [tool.coverage.run] do pyproject.toml (source=agent, fail_under=70)
         # O smoke test (test_teams_notifier.py) não tem funções test_* — ignorado pelo pytest.
 
+  # ── Shell: análise estática dos scripts operacionais ──────────────────────
+  shell-lint:
+    name: Shell — shellcheck scripts/
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: ShellCheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          # Falha apenas em warning ou acima — style/info são opcionais
+          severity: warning
+          scandir: scripts
+
   # ── YAML: sintaxe dos manifestos Kubernetes ────────────────────────────────
   yaml-lint:
     name: YAML — manifestos alerting/
