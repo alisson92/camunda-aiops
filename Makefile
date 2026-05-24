@@ -47,6 +47,12 @@ import-dashboard: ## Importa o dashboard de forecasting no Grafana
 load: ## Gera carga sintética no Kind (medium, 30min) — use DURATION e INTENSITY para customizar
 	./scripts/load-generator.sh --duration $(or $(DURATION),30) --intensity $(or $(INTENSITY),medium)
 
+cycle-test: ## Ciclo completo: PrometheusRule + port-forwards + agente + fast check + load
+	./scripts/run-cycle-test.sh --intensity $(or $(INTENSITY),medium) --duration $(or $(DURATION),20)
+
+cycle-test-fast: ## Ciclo sem load-generator (só fast check — útil quando já há histórico)
+	./scripts/run-cycle-test.sh --skip-load
+
 # ── Ajuda ──────────────────────────────────────────────────────────────────────
 
 help: ## Lista todos os targets disponíveis
