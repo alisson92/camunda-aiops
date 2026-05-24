@@ -139,6 +139,9 @@ o que mudou entre versões sem precisar ler o histórico de commits completo.
 
 ### Próximas melhorias planejadas
 
-- [ ] GitHub Actions CI (Etapa 5 do plano AIOps) — lint + validação de YAML a cada PR
-- [ ] Testes unitários reais com pytest (atualmente apenas smoke test)
+- [x] GitHub Actions CI — lint Python (ruff) + validação YAML (yamllint) a cada push/PR (`856f8ab`)
+- [x] Fix build-backend inválido no pyproject.toml — `setuptools.build_meta` (`9dc238c`)
+- [x] Atualização das GitHub Actions para Node.js 24 — checkout e setup-python v6 (`4961c3e`)
+- [ ] Testes unitários do webhook receiver e do agente (webhook_receiver.py, reactive_agent.py, tools.py)
+- [ ] Teste com alerta real — exercitar o ciclo completo via load-generator → alerta real → Teams
 - [ ] Pipeline Python/Prophet para forecasting com sazonalidade (gatilho: 4+ semanas de histórico)
