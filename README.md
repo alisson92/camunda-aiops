@@ -51,11 +51,14 @@ camunda-aiops/
 │   └── test-port-metrics.sh      # testa endpoints /actuator/prometheus
 ├── tests/
 │   ├── fixtures/                 # payloads de alerta para testes
+│   ├── test_config.py            # 6 testes — carregamento do .env
 │   ├── test_webhook_receiver.py  # 22 testes — endpoints FastAPI
 │   ├── test_reactive_agent.py    # 12 testes — loop agentic com tool use
-│   ├── test_tools.py             # 15 testes — queries Prometheus
+│   ├── test_tools.py             # 22 testes — queries Prometheus + _resolve_ts
 │   ├── test_teams_notifier_unit.py  # 19 testes — Adaptive Card e helpers
-│   └── test_teams_notifier.py    # smoke test de notificações Teams (requer .env)
+│   ├── test_teams_notifier.py    # smoke test de notificações Teams (requer .env)
+│   ├── integration/              # testes contra Prometheus real (Testcontainers)
+│   └── e2e/                      # ciclo completo: webhook → agente → LLM → Teams
 ├── docs/                         # documentação por etapa e decisões técnicas
 ├── .env.example                  # template de variáveis de ambiente
 ├── pyproject.toml                # metadados e dependências do projeto
@@ -154,20 +157,29 @@ contextos `kind-*` disponíveis e exibe o comando para criar o cluster esperado.
 ## Testes e cobertura
 
 ```bash
-# Roda todos os testes unitários (sem infraestrutura necessária)
+# Testes unitários com cobertura (sem infraestrutura necessária)
 make test
 
-# Com relatório de cobertura detalhado
-pytest --cov --cov-report=term-missing
+# Testes de integração — Prometheus real via Testcontainers (requer Docker)
+make test-integration
+
+# Testes E2E — ciclo completo: Prometheus real + LLM/Teams mock HTTP (requer Docker)
+make test-e2e
 
 # Smoke test (requer agent/.env configurado)
 make smoke
 ```
 
-Cobertura atual: **100%** (82 testes unitários). Threshold mínimo configurado: `fail_under = 100`.
+| Suíte | Testes | Infraestrutura | Cobertura |
+|---|---|---|---|
+| Unitários | 88 | Nenhuma | 100% (`fail_under = 100`) |
+| Integração | 7 | Docker — Prometheus real (Testcontainers) | — |
+| E2E | 3 | Docker — Prometheus real + LLM/Teams mock HTTP | — |
 
-Todos os testes unitários mockam dependências externas (Prometheus, Ollama, Teams, Alertmanager)
-e rodam sem nenhuma infraestrutura local.
+**Estratégia de isolamento:**
+- **Unitários:** todas as dependências externas mockadas em nível Python — rodam em qualquer ambiente sem infraestrutura
+- **Integração:** `tools.py` testado contra Prometheus HTTP API real — valida compatibilidade com respostas reais
+- **E2E:** ciclo completo `webhook → agente → Prometheus → LLM → Teams` com zero mocks em nível de função Python; apenas Ollama e Teams interceptados na camada HTTP via `pytest-httpserver`
 
 ---
 
@@ -261,13 +273,15 @@ Trocar de LLM (Ollama → GPT-4 → Claude API) exige mudar apenas duas variáve
 
 ## CI/CD
 
-Três jobs paralelos a cada push/PR:
+5 jobs a cada push/PR — sequência garante que cada camada passa antes da próxima iniciar:
 
-| Job | O que valida |
-|---|---|
-| `python` | `pytest --cov` (82 testes, threshold 100%, cobertura 100%) + `ruff` |
-| `yaml-lint` | `yamllint` em manifestos Kubernetes e configs |
-| `shell-lint` | ShellCheck `severity=warning` em todos os scripts |
+| Job | O que valida | Depende de |
+|---|---|---|
+| `python` | 88 testes unitários, cobertura 100%, `ruff` | — |
+| `yaml-lint` | `yamllint` em manifestos Kubernetes | — |
+| `shell-lint` | ShellCheck `severity=warning` em scripts | — |
+| `integration` | 7 testes — `tools.py` contra Prometheus real (Testcontainers) | `python` |
+| `e2e` | 3 testes — ciclo completo com Prometheus real + mock HTTP | `integration` |
 
 ---
 
