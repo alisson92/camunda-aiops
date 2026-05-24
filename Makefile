@@ -3,6 +3,9 @@
 # Uso: make <target>
 #
 # Ambiente: todas as ferramentas Python são executadas via .venv local.
+
+# Garante que `make` sem argumentos exibe o help em vez de executar o primeiro target
+.DEFAULT_GOAL := help
 # Crie o venv com: python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 
 PYTHON := .venv/bin/python

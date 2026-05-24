@@ -193,7 +193,7 @@ KIND_CONTEXTS=$(kubectl config get-contexts -o name 2>/dev/null | grep "^kind-" 
 CURRENT_CONTEXT=$(kubectl config current-context 2>/dev/null || echo "")
 
 if [ -n "$TARGET_CONTEXT" ]; then
-  # --context foi passado explicitamente: valida e usa
+  # --context passado explicitamente: valida que existe e usa
   if ! echo "$TARGET_CONTEXT" | grep -q "^kind-"; then
     log_warn "Contexto '${TARGET_CONTEXT}' não tem prefixo 'kind-'. Certifique-se de que é um cluster local."
   fi
@@ -204,41 +204,38 @@ if [ -n "$TARGET_CONTEXT" ]; then
     exit 1
   fi
   if [ "$CURRENT_CONTEXT" != "$TARGET_CONTEXT" ]; then
-    log_info "Alternando para contexto especificado: ${TARGET_CONTEXT}"
+    log_info "Alternando para: ${TARGET_CONTEXT}"
     kubectl config use-context "$TARGET_CONTEXT" &>/dev/null
   fi
   CURRENT_CONTEXT="$TARGET_CONTEXT"
   log_ok "Contexto: ${CURRENT_CONTEXT}"
 
-elif [[ "$CURRENT_CONTEXT" == kind-* ]]; then
-  # Contexto atual já é Kind — usa diretamente
-  log_ok "Contexto Kind ativo: ${CURRENT_CONTEXT}"
-
 else
-  # Contexto atual não é Kind e --context não foi passado
-  log_warn "Contexto atual '${CURRENT_CONTEXT}' não é Kind."
-
+  # --context não foi passado: decisão baseada em quantos kind-* existem no kubeconfig
   if [ -z "$KIND_CONTEXTS" ]; then
     log_err "Nenhum contexto Kind encontrado no kubeconfig."
     log_info "Crie o cluster com: kind create cluster --name camunda-platform-local"
     exit 1
   fi
 
-  KIND_COUNT=$(echo "$KIND_CONTEXTS" | wc -l)
+  KIND_COUNT=$(echo "$KIND_CONTEXTS" | grep -c "." || true)
 
   if [ "$KIND_COUNT" -eq 1 ]; then
-    # Só um Kind disponível — alterna automaticamente
+    # Único Kind no kubeconfig — usa sem ambiguidade, mas informa o usuário
     TARGET_CONTEXT=$(echo "$KIND_CONTEXTS" | head -1)
-    log_info "Único cluster Kind encontrado. Alternando automaticamente para: ${TARGET_CONTEXT}"
+    log_info "Único cluster Kind encontrado no kubeconfig: ${TARGET_CONTEXT}"
+    log_info "Para especificar explicitamente: --context ${TARGET_CONTEXT}"
     kubectl config use-context "$TARGET_CONTEXT" &>/dev/null
     CURRENT_CONTEXT="$TARGET_CONTEXT"
     log_ok "Contexto: ${CURRENT_CONTEXT}"
   else
-    # Múltiplos Kind — exige escolha explícita para não errar
-    log_err "Múltiplos clusters Kind encontrados. Use --context para especificar qual usar:"
+    # Múltiplos Kind — nunca auto-seleciona, exige escolha explícita
+    log_err "Múltiplos clusters Kind encontrados. Use --context para evitar usar o cluster errado:"
     echo "$KIND_CONTEXTS" | sed 's/^/    /'
+    echo ""
     log_info "Exemplo:"
     log_info "  ./scripts/run-cycle-test.sh --context $(echo "$KIND_CONTEXTS" | head -1)"
+    log_info "  make cycle-test CONTEXT=$(echo "$KIND_CONTEXTS" | head -1)"
     exit 1
   fi
 fi
