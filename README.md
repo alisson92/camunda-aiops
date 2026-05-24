@@ -38,23 +38,28 @@ camunda-aiops/
 │   ├── system-prompt-v1.md       # system prompt do agente (versionado)
 │   └── GUIDELINES.md             # regras de versionamento de prompts
 ├── alerting/
-│   ├── camunda-forecasting-rules.yaml      # PrometheusRules preditivas
+│   ├── camunda-forecasting-rules.yaml      # PrometheusRules preditivas (IaC)
 │   ├── alertmanager-config-camunda.yaml    # CRD AlertmanagerConfig
 │   └── alertmanager-webhook-patch.yaml     # values patch para helm upgrade
 ├── dashboards/
 │   └── camunda-forecasting.json  # dashboard Grafana — 11 painéis
 ├── scripts/
+│   ├── run-cycle-test.sh         # ciclo completo automatizado com auto-recuperação
 │   ├── check-metrics.sh          # inspeciona métricas no Prometheus
 │   ├── load-generator.sh         # gera carga sintética com sazonalidade
 │   ├── import-dashboard.sh       # importa o dashboard via API do Grafana
 │   └── test-port-metrics.sh      # testa endpoints /actuator/prometheus
 ├── tests/
 │   ├── fixtures/                 # payloads de alerta para testes
-│   └── test_teams_notifier.py    # smoke test de notificações Teams
+│   ├── test_webhook_receiver.py  # 22 testes — endpoints FastAPI
+│   ├── test_reactive_agent.py    # 12 testes — loop agentic com tool use
+│   ├── test_tools.py             # 15 testes — queries Prometheus
+│   ├── test_teams_notifier_unit.py  # 19 testes — Adaptive Card e helpers
+│   └── test_teams_notifier.py    # smoke test de notificações Teams (requer .env)
 ├── docs/                         # documentação por etapa e decisões técnicas
 ├── .env.example                  # template de variáveis de ambiente
 ├── pyproject.toml                # metadados e dependências do projeto
-└── Makefile                      # task runner
+└── Makefile                      # task runner (.DEFAULT_GOAL = help)
 ```
 
 ---
@@ -122,6 +127,50 @@ Dashboard: `http://localhost:3000/d/camunda-local-forecasting/`
 
 ---
 
+## Ciclo completo automatizado
+
+O script `run-cycle-test.sh` automatiza o ciclo completo de validação do lab em um único comando:
+
+```bash
+# Ciclo completo (port-forwards → agente → carga → monitoramento → cleanup)
+make cycle-test
+
+# Com parâmetros customizados
+make cycle-test INTENSITY=high DURATION=30
+
+# Validação rápida de conectividade (sem carga sintética)
+make cycle-test-fast
+
+# Com contexto Kind explícito (override do padrão)
+make cycle-test CONTEXT=kind-meu-cluster
+```
+
+O script usa `DEFAULT_KIND_CONTEXT="kind-camunda-platform-local"` como padrão determinístico.
+Se o contexto não existir no kubeconfig, o script aborta com diagnóstico claro — lista os
+contextos `kind-*` disponíveis e exibe o comando para criar o cluster esperado.
+
+---
+
+## Testes e cobertura
+
+```bash
+# Roda todos os testes unitários (sem infraestrutura necessária)
+make test
+
+# Com relatório de cobertura detalhado
+pytest --cov --cov-report=term-missing
+
+# Smoke test (requer agent/.env configurado)
+make smoke
+```
+
+Cobertura atual: **99.65%** (75 testes unitários). Threshold mínimo configurado: `fail_under = 70`.
+
+Todos os testes unitários mockam dependências externas (Prometheus, Ollama, Teams, Alertmanager)
+e rodam sem nenhuma infraestrutura local.
+
+---
+
 ## Alertas preditivos
 
 Três alertas configurados em `alerting/camunda-forecasting-rules.yaml`:
@@ -165,13 +214,34 @@ Cada card inclui: análise do agente (expansível), link para o dashboard, runbo
 ## Comandos úteis
 
 ```bash
-make run          # inicia o agente na porta 5001
-make test         # roda pytest
-make smoke        # envia todos os cenários de teste para o Teams
+make run              # inicia o agente na porta 5001
+make test             # roda pytest (75 testes unitários)
+make smoke            # envia todos os cenários de teste para o Teams
 make smoke-critical   # envia só o critical
-make lint         # valida estilo com ruff
-make help         # lista todos os targets
+make lint             # valida estilo com ruff
+make cycle-test       # ciclo completo automatizado
+make cycle-test-fast  # ciclo sem carga sintética (validação rápida)
+make help             # lista todos os targets disponíveis
 ```
+
+---
+
+## Princípios de arquitetura
+
+O projeto segue uma **pipeline reativa orientada a eventos**, não polling. Cada componente
+tem uma única responsabilidade e se comunica via interfaces bem definidas:
+
+| Componente | Responsabilidade | Interface |
+|---|---|---|
+| `PrometheusRule` CRD | Define thresholds preditivos como IaC | Kubernetes API |
+| Alertmanager | Roteamento e deduplicação de alertas | `webhook_configs` |
+| `webhook_receiver` | Recebe eventos e aciona o agente | `POST /webhook` (HTTP) |
+| `reactive_agent` | Loop agentic: análise + tool use | OpenAI-compatible API |
+| `tools` | Queries ao Prometheus | Prometheus HTTP API |
+| `teams_notifier` | Formatação e entrega da notificação | Microsoft Teams Webhook |
+
+**Vendor neutrality:** O SDK `openai` é usado com `base_url` apontando para o Ollama local.
+Trocar de LLM (Ollama → GPT-4 → Claude API) exige mudar apenas duas variáveis de ambiente.
 
 ---
 
@@ -179,13 +249,25 @@ make help         # lista todos os targets
 
 | Documento | Conteúdo |
 |---|---|
+| `docs/projeto-evolucao.md` | Decisões técnicas, ADRs simplificados e trade-offs |
 | `docs/etapa-1-prometheus-rules.md` | PrometheusRules preditivas |
 | `docs/etapa-2-grafana-mcp-server.md` | Grafana MCP Server + Claude Code |
 | `docs/etapa-3-agente-reativo-claude-api.md` | Agente com Claude API (histórico) |
 | `docs/etapa-4-ollama-local-llm.md` | Migração para Ollama local |
-| `docs/projeto-evolucao.md` | Decisões técnicas e refatorações |
 | `docs/fix-*.md` | Investigações e fixes documentados |
 | `prompts/GUIDELINES.md` | Como versionar e testar prompts |
+
+---
+
+## CI/CD
+
+Três jobs paralelos a cada push/PR:
+
+| Job | O que valida |
+|---|---|
+| `python` | `pytest --cov` (75 testes, threshold 70%) + `ruff` |
+| `yaml-lint` | `yamllint` em manifestos Kubernetes e configs |
+| `shell-lint` | ShellCheck `severity=warning` em todos os scripts |
 
 ---
 
@@ -196,3 +278,5 @@ make help         # lista todos os targets
 - [Ollama — OpenAI compatibility](https://ollama.com/blog/openai-compatibility)
 - [Microsoft Adaptive Cards](https://adaptivecards.io/)
 - [The Twelve-Factor App](https://12factor.net/)
+- [ShellCheck](https://www.shellcheck.net/)
+- [Documenting Architecture Decisions — Michael Nygard](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions)

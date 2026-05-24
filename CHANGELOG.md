@@ -9,9 +9,17 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `tests/test_webhook_receiver.py` — 22 testes unitários para `/health`, `/webhook`, `/silence` (FastAPI TestClient)
+- `tests/test_reactive_agent.py` — 12 testes do loop agentic com tool use (mock OpenAI client)
+- `tests/test_tools.py` — 15 testes de queries ao Prometheus (mock httpx)
+- `tests/test_teams_notifier_unit.py` — 19 testes de helpers puros e montagem do Adaptive Card
+- `scripts/run-cycle-test.sh` — ciclo completo automatizado: port-forwards → agente → carga → alerta → cleanup
+- `Makefile` targets `cycle-test` e `cycle-test-fast` para acionar o ciclo via `make`
+- `.github/workflows/ci.yml` job `shell-lint` — ShellCheck com `severity=warning` via `ludeeus/action-shellcheck@2.0.0`
+- `.gitignore` entradas `.coverage` e `htmlcov/`
+- `pyproject.toml` — dependência `pytest-cov>=5.0.0`; seções `[tool.coverage.run]` e `[tool.coverage.report]` com `fail_under = 70`
 - `agent/config.py` — ponto único de configuração; carrega `.env` e expõe constantes tipadas
 - `agent/__init__.py` — torna `agent/` um pacote Python formal
-- `tests/` — diretório de testes na raiz (pytest convention)
 - `tests/fixtures/` — fixtures de payload do Alertmanager (movidas de `agent/test-fixtures/`)
 - `tests/test_teams_notifier.py` — smoke test de notificações Teams (movido de `agent/`)
 - `pyproject.toml` — substitui `requirements.txt`; define metadados, deps e config do pytest
@@ -23,6 +31,13 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 - `prompts/system-prompt-v1.md` — system prompt base do agente AIOps
 
 ### Changed
+- `Makefile` — `.DEFAULT_GOAL := help`; `make` sem argumentos exibe targets disponíveis
+- `.github/workflows/ci.yml` — step `pytest` atualizado para `pytest --cov --cov-report=term-missing`
+- `agent/webhook_receiver.py` — `datetime.utcnow()` substituído por `datetime.now(timezone.utc)` (deprecation fix)
+- `scripts/run-cycle-test.sh` — `DEFAULT_KIND_CONTEXT="kind-camunda-platform-local"` hardcoded; falha explícita com diagnóstico se o contexto não existir
+- `scripts/load-generator.sh` — removidas variáveis não utilizadas (`ZEEBE_REST_URL`, `HTTP_PID_1/2`, `SCALE_PID`)
+- `scripts/check-metrics.sh` — variável `description` usada na saída de log (SC2034)
+- `scripts/test-port-metrics.sh` — adicionado shebang `#!/usr/bin/env bash` (SC2148)
 - `agent/tools.py` — `PROMETHEUS_URL` agora vem de `config.py` (era hardcoded)
 - `agent/reactive_agent.py` — carregamento de `.env` centralizado em `config.py`; logging estruturado
 - `agent/teams_notifier.py` — variáveis de ambiente via `config.py`; logging estruturado
