@@ -12,14 +12,18 @@ import logging
 import os
 from pathlib import Path
 
-# Carrega agent/.env em desenvolvimento — sem dependência de python-dotenv
-_env_file = Path(__file__).parent / ".env"
-if _env_file.exists():
-    for _line in _env_file.read_text(encoding="utf-8").splitlines():
-        _line = _line.strip()
-        if _line and not _line.startswith("#") and "=" in _line:
-            _key, _, _val = _line.partition("=")
-            os.environ.setdefault(_key.strip(), _val.strip())
+def _load_env_file(env_path: Path) -> None:
+    """Carrega variáveis de um arquivo .env sem sobrescrever o ambiente existente."""
+    if not env_path.exists():
+        return
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, _, val = line.partition("=")
+            os.environ.setdefault(key.strip(), val.strip())
+
+
+_load_env_file(Path(__file__).parent / ".env")
 
 # --- Ollama ---
 OLLAMA_BASE_URL: str = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1")
