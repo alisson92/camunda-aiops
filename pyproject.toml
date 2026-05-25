@@ -12,10 +12,6 @@ authors = [
     { name = "Alisson Lima" },
 ]
 keywords = ["aiops", "camunda", "kubernetes", "llm", "ollama", "prometheus", "alerting"]
-
-[project.urls]
-Repository = "https://github.com/alisson92/camunda-aiops"
-
 dependencies = [
     "openai>=1.30.0,<2.0.0",
     "fastapi>=0.115.0,<1.0.0",
@@ -33,6 +29,9 @@ dev = [
     "testcontainers>=4.7.0",
     "pytest-httpserver>=1.0.0",
 ]
+
+[project.urls]
+Repository = "https://github.com/alisson92/camunda-aiops"
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -24,7 +24,6 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 
 import httpx
-
 from config import AGENT_PUBLIC_URL, GRAFANA_DASHBOARD_UID, GRAFANA_URL, TEAMS_WEBHOOK_URL
 
 logger = logging.getLogger(__name__)

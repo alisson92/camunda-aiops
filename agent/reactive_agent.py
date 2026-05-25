@@ -9,12 +9,12 @@ port-forward local. Zero dependência de APIs externas.
 import json
 import logging
 
-from openai import OpenAI
-
 from config import OLLAMA_BASE_URL, OLLAMA_MODEL
 from metrics import LLM_TOOL_CALLS
-from prompts import SYSTEM_PROMPT, build_user_message
+from openai import OpenAI
 from tools import TOOL_DISPATCH, TOOL_SCHEMAS
+
+from prompts import SYSTEM_PROMPT, build_user_message
 
 logger = logging.getLogger(__name__)
 
