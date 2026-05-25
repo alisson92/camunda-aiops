@@ -36,6 +36,12 @@ LLM_TOOL_CALLS = Counter(
     ["tool_name"],
 )
 
+LLM_ROUNDS_USED = Histogram(
+    "aiops_llm_rounds_used",
+    "Número de rodadas de tool use por ciclo de análise (1 = resposta direta, MAX_TOOL_ROUNDS = loop esgotado)",
+    buckets=[1, 2, 3, 4, 5, 6],
+)
+
 TEAMS_NOTIFICATIONS = Counter(
     "aiops_teams_notifications_total",
     "Notificações enviadas ao Microsoft Teams",

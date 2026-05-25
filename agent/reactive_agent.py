@@ -10,7 +10,7 @@ import json
 import logging
 
 from config import OLLAMA_BASE_URL, OLLAMA_MODEL
-from metrics import LLM_TOOL_CALLS
+from metrics import LLM_ROUNDS_USED, LLM_TOOL_CALLS
 from openai import OpenAI
 from tools import TOOL_DISPATCH, TOOL_SCHEMAS
 
@@ -27,10 +27,12 @@ def run_agent(
     alert_annotations: dict,
     status: str = "firing",
     context_docs: list | None = None,
+    alert_id: str = "",
 ) -> str:
     """
     Executa o loop do agente para um alerta recebido.
     context_docs: documentos relevantes da KnowledgeBase injetados no contexto do LLM.
+    alert_id: ID de correlação para rastrear todas as linhas de log de uma análise.
     Retorna a análise final como string.
     """
     # api_key="ollama" é um placeholder obrigatório pelo SDK — Ollama não valida o valor
@@ -41,7 +43,7 @@ def run_agent(
         {"role": "user", "content": build_user_message(alert_name, alert_labels, alert_annotations, status, context_docs)},
     ]
 
-    logger.info("Iniciando análise: alerta=%s status=%s modelo=%s", alert_name, status, OLLAMA_MODEL)
+    logger.info("[%s] Iniciando análise: alerta=%s status=%s modelo=%s", alert_id, alert_name, status, OLLAMA_MODEL)
 
     for round_n in range(MAX_TOOL_ROUNDS):
         response = client.chat.completions.create(
@@ -56,11 +58,12 @@ def run_agent(
 
         if choice.finish_reason == "stop":
             final_text = choice.message.content or "[sem resposta textual]"
-            logger.info("Análise concluída em %d rodada(s).", round_n + 1)
+            LLM_ROUNDS_USED.observe(round_n + 1)
+            logger.info("[%s] Análise concluída em %d rodada(s).", alert_id, round_n + 1)
             return final_text
 
         if choice.finish_reason != "tool_calls":
-            logger.warning("finish_reason inesperado: %s", choice.finish_reason)
+            logger.warning("[%s] finish_reason inesperado: %s", alert_id, choice.finish_reason)
             return f"[agent] finish_reason inesperado: {choice.finish_reason}"
 
         # Processa todas as chamadas de ferramentas desta rodada
@@ -72,7 +75,7 @@ def run_agent(
                 tool_input = {}
                 logger.warning("Erro ao parsear argumentos de %s: %s", tool_name, e)
 
-            logger.info("Ferramenta: %s(%s)", tool_name, json.dumps(tool_input, ensure_ascii=False))
+            logger.info("[%s] Ferramenta: %s(%s)", alert_id, tool_name, json.dumps(tool_input, ensure_ascii=False))
             LLM_TOOL_CALLS.labels(tool_name=tool_name).inc()
 
             fn = TOOL_DISPATCH.get(tool_name)
@@ -92,5 +95,5 @@ def run_agent(
                 "content": json.dumps(result, ensure_ascii=False),
             })
 
-    logger.warning("Limite de %d rodadas atingido sem conclusão.", MAX_TOOL_ROUNDS)
+    logger.warning("[%s] Limite de %d rodadas atingido sem conclusão.", alert_id, MAX_TOOL_ROUNDS)
     return "[agent] Limite de rodadas de ferramentas atingido sem conclusão."

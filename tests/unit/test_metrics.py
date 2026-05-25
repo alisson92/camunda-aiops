@@ -12,6 +12,7 @@ from metrics import (
     ALERTS_FILTERED,
     ALERTS_PROCESSED,
     ANALYSIS_DURATION,
+    LLM_ROUNDS_USED,
     LLM_TOOL_CALLS,
     TEAMS_NOTIFICATIONS,
     WEBHOOKS_RECEIVED,
@@ -48,6 +49,14 @@ class TestMetricsDefinition:
         assert isinstance(TEAMS_NOTIFICATIONS, Counter)
         assert "success" in TEAMS_NOTIFICATIONS._labelnames
 
+    def test_llm_rounds_used_is_histogram(self):
+        assert isinstance(LLM_ROUNDS_USED, Histogram)
+
+    def test_llm_rounds_used_has_buckets_covering_max_rounds(self):
+        # Buckets devem cobrir o intervalo 1–MAX_TOOL_ROUNDS (6)
+        assert 3 in LLM_ROUNDS_USED._upper_bounds
+        assert 6 in LLM_ROUNDS_USED._upper_bounds
+
     def test_all_metrics_registered_in_default_registry(self):
         """Garante que todas as métricas estão no REGISTRY padrão."""
         registered_names = set(REGISTRY._names_to_collectors.keys())
@@ -56,6 +65,7 @@ class TestMetricsDefinition:
         assert "aiops_alerts_filtered_total" in registered_names
         assert "aiops_analysis_duration_seconds_count" in registered_names
         assert "aiops_llm_tool_calls_total" in registered_names
+        assert "aiops_llm_rounds_used_count" in registered_names
         assert "aiops_teams_notifications_total" in registered_names
 
     def test_alerts_filtered_starts_at_zero(self):

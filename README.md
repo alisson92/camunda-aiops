@@ -55,15 +55,15 @@ camunda-aiops/
 │   └── import-dashboard.sh       # importa o dashboard via API do Grafana
 ├── tests/
 │   ├── fixtures/                 # payloads de alerta para testes
-│   ├── unit/                     # 198 testes unitários (sem infraestrutura)
-│   │   ├── test_config.py        # 8 testes — carregamento do .env + _BRTFormatter
-│   │   ├── test_webhook_receiver.py  # 28 testes — endpoints FastAPI (incl. /runbook)
-│   │   ├── test_reactive_agent.py    # 16 testes — loop agentic + injeção de contexto RAG
+│   ├── unit/                     # 213 testes unitários (sem infraestrutura)
+│   │   ├── test_config.py        # 12 testes — carregamento do .env + _BRTFormatter + ALERT_FILTER_KEYWORDS
+│   │   ├── test_webhook_receiver.py  # 31 testes — endpoints FastAPI (incl. /runbook, /health enriquecido)
+│   │   ├── test_reactive_agent.py    # 17 testes — loop agentic, alert_id, LLM_ROUNDS_USED
 │   │   ├── test_runbook_generator.py # 42 testes — geração, fallback, Markdown→HTML
 │   │   ├── test_tools.py             # 22 testes — queries Prometheus + _resolve_ts
 │   │   ├── test_teams_notifier_unit.py  # 32 testes — Adaptive Card e helpers
-│   │   ├── test_metrics.py           # 9 testes — definição e registro das métricas
-│   │   ├── test_knowledge_base.py    # 33 testes — KB: init, search, scoring, persistência
+│   │   ├── test_metrics.py           # 11 testes — definição e registro das métricas (incl. LLM_ROUNDS_USED)
+│   │   ├── test_knowledge_base.py    # 37 testes — KB: init, search, scoring, persistência, get_runbooks
 │   │   └── test_alert_fixtures.py    # 7 testes — estrutura dos fixtures JSON
 │   ├── smoke/                    # smoke tests manuais (não executados pelo pytest)
 │   │   └── test_teams_notifier.py   # envia cards reais para o Teams (requer .env)

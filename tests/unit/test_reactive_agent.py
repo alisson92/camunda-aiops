@@ -52,6 +52,23 @@ class TestRunAgentStop:
 
         assert result == "Análise: tudo ok."
 
+    def test_accepts_alert_id_parameter(self):
+        choice = _make_choice("stop", content="ok")
+        with patch("reactive_agent.OpenAI") as MockOpenAI:
+            MockOpenAI.return_value.chat.completions.create.return_value = _make_completion(choice)
+            result = run_agent("ZeebeMemoryPredictedHigh", {}, {}, alert_id="abc12345")
+        assert result == "ok"
+
+    def test_llm_rounds_used_observed_on_stop(self):
+        choice = _make_choice("stop", content="ok")
+        with (
+            patch("reactive_agent.OpenAI") as MockOpenAI,
+            patch("reactive_agent.LLM_ROUNDS_USED") as mock_rounds,
+        ):
+            MockOpenAI.return_value.chat.completions.create.return_value = _make_completion(choice)
+            run_agent("ZeebeMemoryPredictedHigh", {}, {})
+        mock_rounds.observe.assert_called_once_with(1)
+
     def test_returns_fallback_message_when_content_is_empty(self):
         choice = _make_choice("stop", content="")
         with patch("reactive_agent.OpenAI") as MockOpenAI:

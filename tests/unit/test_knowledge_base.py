@@ -269,3 +269,52 @@ class TestKnowledgeBasePersistence:
         assert len(kb2) == 1
         results = kb2.search("ZeebeMemoryPredictedHigh")
         assert results[0].alert_name == "ZeebeMemoryPredictedHigh"
+
+
+# ---------------------------------------------------------------------------
+# KnowledgeBase — get_runbooks
+# ---------------------------------------------------------------------------
+
+
+class TestKnowledgeBaseGetRunbooks:
+    def test_get_runbooks_empty_when_no_generated(self, tmp_path):
+        kb = KnowledgeBase(data_dir=tmp_path / "kb")
+        assert kb.get_runbooks() == {}
+
+    def test_get_runbooks_returns_generated_document(self, tmp_path):
+        kb = KnowledgeBase(data_dir=tmp_path / "kb")
+        kb.add_document(
+            "rb-abc12345",
+            "Runbook: ZeebeMemoryPredictedHigh",
+            "# Runbook: ZeebeMemoryPredictedHigh\n\nconteúdo",
+            alert_name="ZeebeMemoryPredictedHigh",
+            source="generated",
+        )
+        result = kb.get_runbooks()
+        assert "rb-abc12345" in result
+        assert result["rb-abc12345"].source == "generated"
+        assert result["rb-abc12345"].alert_name == "ZeebeMemoryPredictedHigh"
+
+    def test_get_runbooks_excludes_curated_documents(self, tmp_path):
+        kb_dir = tmp_path / "kb"
+        examples_dir = kb_dir / "examples"
+        examples_dir.mkdir(parents=True)
+        (examples_dir / "zeebe-alert.md").write_text(
+            "---\nalert_name: ZeebeAlert\n---\n# Exemplo\nconteúdo"
+        )
+        kb = KnowledgeBase(data_dir=kb_dir)
+        # Apenas o curated foi carregado — get_runbooks não deve retorná-lo
+        assert kb.get_runbooks() == {}
+
+    def test_get_runbooks_survives_reload(self, tmp_path):
+        kb1 = KnowledgeBase(data_dir=tmp_path / "kb")
+        kb1.add_document(
+            "rb-reload-00",
+            "Runbook: TestAlert",
+            "# Runbook: TestAlert\n\nconteúdo",
+            alert_name="TestAlert",
+        )
+        # Após reload do disco, get_runbooks deve reconhecer o runbook persistido
+        kb2 = KnowledgeBase(data_dir=tmp_path / "kb")
+        runbooks = kb2.get_runbooks()
+        assert "rb-reload-00" in runbooks

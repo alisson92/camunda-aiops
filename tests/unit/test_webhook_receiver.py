@@ -50,6 +50,13 @@ class TestHealthEndpoint:
         assert body["status"] == "ok"
         assert "timestamp" in body
 
+    def test_body_includes_knowledge_base_info(self, client):
+        tc, *_ = client
+        body = tc.get("/health").json()
+        assert "knowledge_base" in body
+        assert "documents" in body["knowledge_base"]
+        assert isinstance(body["knowledge_base"]["documents"], int)
+
 
 # ---------------------------------------------------------------------------
 # /webhook
@@ -116,6 +123,24 @@ class TestWebhookEndpoint:
         assert body["analyses"][0]["alertname"] == "ZeebeMemoryPredictedHigh"
         mock_agent.assert_called_once()
         mock_teams.assert_called_once()
+
+    def test_run_agent_called_with_alert_id(self, client):
+        tc, mock_agent, *_ = client
+        payload = {
+            "alerts": [
+                {
+                    "status": "firing",
+                    "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical"},
+                    "annotations": {},
+                    "startsAt": "2026-05-24T10:00:00Z",
+                    "endsAt": "0001-01-01T00:00:00Z",
+                }
+            ]
+        }
+        tc.post("/webhook", json=payload)
+        call_kwargs = mock_agent.call_args[1]
+        assert "alert_id" in call_kwargs
+        assert len(call_kwargs["alert_id"]) == 8
 
     def test_camunda_alert_triggers_agent(self, client):
         tc, mock_agent, *_ = client
@@ -293,6 +318,20 @@ class TestRunbookEndpoint:
         tc, *_ = client
         resp = tc.get("/runbook/alert-inexistente-00000000")
         assert resp.status_code == 404
+
+    def test_runbook_served_from_pre_existing_store(self):
+        """Simula runbook recarregado da KB após restart — acessível sem /webhook prévio."""
+        from webhook_receiver import _runbooks, app
+
+        pre_id = "pre-existing-00000000"
+        _runbooks[pre_id] = ("TestAlert", "# Runbook: TestAlert\n\nconteúdo")
+        try:
+            tc = TestClient(app)
+            resp = tc.get(f"/runbook/{pre_id}")
+            assert resp.status_code == 200
+            assert "TestAlert" in resp.text
+        finally:
+            _runbooks.pop(pre_id, None)
 
     def test_resolved_alert_has_no_runbook(self, client):
         tc, *_ = client

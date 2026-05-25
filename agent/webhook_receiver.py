@@ -9,6 +9,7 @@ Uso:
 
 import json
 import logging
+import uuid
 from datetime import UTC, datetime, timedelta, timezone
 
 import httpx
@@ -35,6 +36,14 @@ setup_logging()
 
 # Base de conhecimento — carregada uma vez na inicialização do processo
 _kb = KnowledgeBase()
+
+# Repovoar store de runbooks a partir da KB (runbooks persistidos em ciclos anteriores)
+# Garante que /runbook/{id} funcione mesmo após restart do agente
+_runbooks.update({
+    doc_id: (doc.alert_name, doc.content)
+    for doc_id, doc in _kb.get_runbooks().items()
+})
+
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Camunda AIOps Webhook Receiver")
@@ -42,7 +51,11 @@ app = FastAPI(title="Camunda AIOps Webhook Receiver")
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "timestamp": datetime.now(UTC).isoformat()}
+    return {
+        "status": "ok",
+        "timestamp": datetime.now(UTC).isoformat(),
+        "knowledge_base": {"documents": len(_kb)},
+    }
 
 
 @app.get("/metrics", response_class=PlainTextResponse)
@@ -79,16 +92,17 @@ async def alertmanager_webhook(request: Request):
         starts_at   = alert.get("startsAt", "")
         ends_at     = alert.get("endsAt", "")
 
-        logger.info("Alerta recebido: %s | status: %s | labels: %s", alert_name, status, json.dumps(labels))
+        alert_id = uuid.uuid4().hex[:8]
+        logger.info("[%s] Alerta recebido: %s | status: %s | labels: %s", alert_id, alert_name, status, json.dumps(labels))
 
         if not any(kw in alert_name for kw in ALERT_FILTER_KEYWORDS):
-            logger.debug("Alerta %s ignorado (fora do escopo Camunda)", alert_name)
+            logger.debug("[%s] Alerta %s ignorado (fora do escopo Camunda)", alert_id, alert_name)
             ALERTS_FILTERED.inc()
             continue
 
         context_docs = _kb.search(alert_name, k=2)
         if context_docs:
-            logger.info("KB: %d doc(s) relevante(s) para %s", len(context_docs), alert_name)
+            logger.info("[%s] KB: %d doc(s) relevante(s) para %s", alert_id, len(context_docs), alert_name)
 
         with ANALYSIS_DURATION.time():
             analysis = run_agent(
@@ -97,11 +111,12 @@ async def alertmanager_webhook(request: Request):
                 alert_annotations=annotations,
                 status=status,
                 context_docs=context_docs,
+                alert_id=alert_id,
             )
 
         severity = labels.get("severity", "unknown")
         ALERTS_PROCESSED.labels(alertname=alert_name, severity=severity).inc()
-        logger.info("Análise concluída para %s:\n%s", alert_name, analysis)
+        logger.info("[%s] Análise concluída para %s:\n%s", alert_id, alert_name, analysis)
 
         runbook_id = ""
         if status != "resolved":
@@ -112,7 +127,7 @@ async def alertmanager_webhook(request: Request):
                 starts_at=starts_at,
             )
             _runbooks[runbook_id] = (alert_name, runbook_md)
-            logger.info("Runbook armazenado: id=%s", runbook_id)
+            logger.info("[%s] Runbook armazenado: id=%s", alert_id, runbook_id)
             _kb.add_document(
                 doc_id=runbook_id,
                 title=f"Runbook: {alert_name}",

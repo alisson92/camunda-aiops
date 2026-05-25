@@ -8,6 +8,20 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added (Revisão E — AIOps best practices)
+- `agent/metrics.py`: `LLM_ROUNDS_USED` — novo Histogram `aiops_llm_rounds_used` (buckets 1–6) para instrumentar quantas rodadas de tool use cada análise consome
+- `agent/knowledge_base.py`: método público `get_runbooks()` — retorna apenas documentos gerados (`source="generated"`), usado para recarregar o store de runbooks no startup
+- `docs/revisao-E-aiops-best-practices.md` — laudo completo desta revisão (diagnóstico + decisões de descarte)
+
+### Changed (Revisão E)
+- `agent/reactive_agent.py`: parâmetro `alert_id: str = ""` em `run_agent` — propagado em todas as linhas de log do ciclo de análise; `LLM_ROUNDS_USED.observe(round_n + 1)` registrado ao concluir
+- `agent/webhook_receiver.py`: correlation ID gerado por alerta (`uuid.uuid4().hex[:8]`) e propagado nos logs; runbooks recarregados da KB no startup; `/health` retorna `knowledge_base.documents`
+- `README.md`: contagem de testes unitários atualizada (198 → 213) com detalhes por arquivo
+- `docs/README.md`: entrada da Revisão E adicionada à tabela de revisões
+
+### Fixed (Revisão E)
+- `webhook_receiver.py`: runbooks gerados em ciclos anteriores agora são recarregados no startup a partir da KB — links "📖 Runbook" no Teams não retornam mais 404 após restart do agente
+
 ### Added (Revisão D — CONTRIBUTING.md e padrões do projeto)
 - `CONTRIBUTING.md` — guia centralizado de padrões: fluxo de contribuição, Conventional Commits, regras de código (ruff), requisitos de teste (100% cobertura), checklist para nova etapa, ADR format, tabela do CI e o que nunca commitar
 - `docs/revisao-D-contributing.md` — laudo completo desta revisão

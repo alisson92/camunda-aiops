@@ -186,6 +186,10 @@ class KnowledgeBase:
         score += 0.1 * content_overlap / max(len(query_tokens), 1)
         return score
 
+    def get_runbooks(self) -> dict[str, Document]:
+        """Retorna todos os documentos gerados (runbooks) — usado para repovoar o store em memória no startup."""
+        return {k: v for k, v in self._documents.items() if v.source == "generated"}
+
     def __len__(self) -> int:
         return len(self._documents)
 
