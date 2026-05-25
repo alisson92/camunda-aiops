@@ -4,9 +4,18 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "camunda-aiops"
-version = "0.1.0"
+version = "0.12.0"
 description = "AIOps lab — forecasting preditivo e agente reativo para Kubernetes + Camunda 8"
+readme = "README.md"
 requires-python = ">=3.11"
+authors = [
+    { name = "Alisson Lima" },
+]
+keywords = ["aiops", "camunda", "kubernetes", "llm", "ollama", "prometheus", "alerting"]
+
+[project.urls]
+Repository = "https://github.com/alisson92/camunda-aiops"
+
 dependencies = [
     "openai>=1.30.0,<2.0.0",
     "fastapi>=0.115.0,<1.0.0",
@@ -51,3 +60,12 @@ fail_under = 100
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint]
+# E/W: erros e avisos PEP 8
+# F: erros Pyflakes (imports não usados, variáveis indefinidas, etc.)
+# I: ordenação de imports (isort)
+# UP: modernização de sintaxe Python (pyupgrade)
+select = ["E", "W", "F", "I", "UP"]
+# E501: comprimento de linha já controlado por line-length acima
+ignore = ["E501"]

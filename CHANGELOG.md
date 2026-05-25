@@ -8,6 +8,22 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added (Revisão C — Organização e estrutura do repositório)
+- `docs/README.md` — índice de navegação da pasta docs/ (etapas, revisões, fixes, ADR log)
+- `data/knowledge/examples/README.md` — instruções para adicionar exemplos few-shot
+- `docs/revisao-C-organizacao-estrutura.md` — laudo completo desta revisão
+- `pyproject.toml`: campos PEP 621 — `readme`, `authors`, `[project.urls]`, `keywords`; versão `0.1.0` → `0.12.0`
+- `pyproject.toml`: `[tool.ruff.lint]` com `select = ["E","W","F","I","UP"]`
+
+### Changed (Revisão C)
+- `.github/workflows/ci.yml` — actions corrigidas: `checkout@v6`→`@v4`, `setup-python@v6`→`@v5` (versões inexistentes)
+- `scripts/check-metrics.sh` — header atualizado: nome e comandos de uso corrigidos (ainda referenciava `01-check-metrics.sh`)
+- `prompts/GUIDELINES.md` — estrutura da pasta atualizada: v1 depreciado, v2 listado como versão em uso
+- `agent/config.py`, `agent/tools.py`, `agent/runbook_generator.py`, `agent/webhook_receiver.py` — 9 violações lint auto-corrigidas pelo ruff (`I001` import order, `UP017` `datetime.UTC`)
+
+### Removed (Revisão C)
+- `data/knowledge/runbooks/zeebe-memory-predicted-high-aabbccdd.md` — placeholder de runtime removido novamente (recriado por execução de demo anterior)
+
 ### Added (Revisão B — Hardcoded e configurabilidade)
 - `config.py`: `ALERT_FILTER_KEYWORDS` — nova variável de ambiente (padrão `Zeebe,Camunda`); define quais alertas o agente processa sem exigir edição de código
 - `.env.example`: entrada `ALERT_FILTER_KEYWORDS` com documentação e exemplo de uso

@@ -13,6 +13,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+
 def _load_env_file(env_path: Path) -> None:
     """Carrega variáveis de um arquivo .env sem sobrescrever o ambiente existente."""
     if not env_path.exists():

@@ -7,7 +7,6 @@ import logging
 import time as _time
 
 import httpx
-
 from config import ALERT_FILTER_KEYWORDS, PROMETHEUS_URL
 
 logger = logging.getLogger(__name__)

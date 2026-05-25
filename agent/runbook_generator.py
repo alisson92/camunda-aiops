@@ -17,9 +17,8 @@ import logging
 import re
 from datetime import datetime, timedelta, timezone
 
-from openai import OpenAI
-
 from config import GRAFANA_URL, OLLAMA_BASE_URL, OLLAMA_MODEL
+from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 

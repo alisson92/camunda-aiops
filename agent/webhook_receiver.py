@@ -9,14 +9,13 @@ Uso:
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import httpx
+from config import AGENT_PUBLIC_URL, ALERT_FILTER_KEYWORDS, ALERTMANAGER_URL, setup_logging
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
-from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
-
-from config import AGENT_PUBLIC_URL, ALERT_FILTER_KEYWORDS, ALERTMANAGER_URL, setup_logging
+from knowledge_base import KnowledgeBase
 from metrics import (
     ALERTS_FILTERED,
     ALERTS_PROCESSED,
@@ -24,7 +23,7 @@ from metrics import (
     TEAMS_NOTIFICATIONS,
     WEBHOOKS_RECEIVED,
 )
-from knowledge_base import KnowledgeBase
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from reactive_agent import run_agent
 from runbook_generator import generate_runbook, render_runbook_html
 from teams_notifier import send_alert_to_teams
@@ -43,7 +42,7 @@ app = FastAPI(title="Camunda AIOps Webhook Receiver")
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
+    return {"status": "ok", "timestamp": datetime.now(UTC).isoformat()}
 
 
 @app.get("/metrics", response_class=PlainTextResponse)
@@ -181,7 +180,7 @@ async def create_silence(
     else:
         raise HTTPException(status_code=400, detail=f"Unidade não suportada: {unit}. Use h ou m.")
 
-    now     = datetime.now(timezone.utc)
+    now     = datetime.now(UTC)
     ends_at = now + delta
 
     silence_payload = {

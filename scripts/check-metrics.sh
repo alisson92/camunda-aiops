@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # =============================================================================
-# 01-check-metrics.sh
+# check-metrics.sh
 #
 # Finalidade: inspecionar quais métricas do Camunda/K8s já estão sendo
 # coletadas pelo Prometheus. Roda queries direto na API do Prometheus via
 # port-forward — não precisa de Grafana aberto.
 #
 # Uso:
-#   chmod +x 01-check-metrics.sh
-#   ./01-check-metrics.sh
+#   make check-metrics
+#   # ou diretamente:
+#   ./scripts/check-metrics.sh
 #
 # Pré-requisito: port-forward ativo em background ou em outro terminal:
 #   kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090

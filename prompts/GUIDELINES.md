@@ -5,7 +5,8 @@
 ```
 prompts/
 ├── GUIDELINES.md          # este arquivo — leia antes de qualquer alteração
-└── system-prompt-v1.md    # system prompt ativo do agente
+├── system-prompt-v1.md    # v1 — DEPRECIADO, mantido como referência histórica
+└── system-prompt-v2.md    # v2 — versão em uso (atualizado na Etapa 9)
 ```
 
 ---
