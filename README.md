@@ -132,6 +132,32 @@ Dashboard: `http://localhost:3000/d/camunda-local-forecasting/`
 
 ---
 
+## Demo ao time
+
+O script `demo.sh` roda o ciclo completo sem precisar do cluster Kind ou de alertas reais disparando — ideal para apresentações e ensaios:
+
+```bash
+# Pré-requisitos: make run (agente na porta 5001) + Ollama com qwen2.5:7b
+
+# Ciclo completo: 4 cenários em sequência
+make demo
+
+# Um cenário específico
+make demo-backpressure   # critical — maior impacto visual
+make demo-zeebe          # warning — heap JVM crescendo
+make demo-resolved       # resolved — lifecycle completo
+
+# Ensaiar sem enviar nada
+./scripts/demo.sh --dry-run
+
+# Ver cenários disponíveis
+./scripts/demo.sh --list
+```
+
+Cada cenário envia o payload ao webhook, aguarda o LLM processar e exibe os primeiros caracteres da análise no terminal. O card completo chega no Microsoft Teams.
+
+---
+
 ## Ciclo completo automatizado
 
 O script `run-cycle-test.sh` automatiza o ciclo completo de validação do lab em um único comando:

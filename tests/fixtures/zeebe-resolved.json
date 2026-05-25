@@ -1,0 +1,35 @@
+{
+  "receiver": "camunda-aiops-webhook",
+  "status": "resolved",
+  "alerts": [
+    {
+      "status": "resolved",
+      "labels": {
+        "alertname": "ZeebeMemoryPredictedHigh",
+        "namespace": "camunda",
+        "pod": "camunda-zeebe-0",
+        "severity": "warning"
+      },
+      "annotations": {
+        "summary": "Zeebe JVM heap voltou ao normal",
+        "description": "O heap G1 Old Gen do Zeebe está estabilizado abaixo do threshold após a intervenção."
+      },
+      "startsAt": "2026-05-24T10:00:00Z",
+      "endsAt": "2026-05-24T10:45:00Z",
+      "generatorURL": "http://localhost:9090/graph?g0.expr=predict_linear"
+    }
+  ],
+  "groupLabels": {
+    "alertname": "ZeebeMemoryPredictedHigh"
+  },
+  "commonLabels": {
+    "alertname": "ZeebeMemoryPredictedHigh",
+    "severity": "warning"
+  },
+  "commonAnnotations": {
+    "summary": "Zeebe JVM heap voltou ao normal"
+  },
+  "externalURL": "http://localhost:9093",
+  "version": "4",
+  "groupKey": "{}/{alertname=~\"Zeebe.*|Camunda.*\"}:{alertname=\"ZeebeMemoryPredictedHigh\"}"
+}

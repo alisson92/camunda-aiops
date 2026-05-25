@@ -12,7 +12,7 @@ PYTHON := .venv/bin/python
 PYTEST  := .venv/bin/pytest
 RUFF    := .venv/bin/ruff
 
-.PHONY: run test test-integration test-e2e smoke lint load help
+.PHONY: run test test-integration test-e2e smoke demo lint load help
 
 # ── Agente ─────────────────────────────────────────────────────────────────────
 
@@ -35,6 +35,12 @@ smoke: ## Envia os 3 alertas de teste para o Teams (critical, warning, info)
 
 smoke-%: ## Envia um cenário específico: make smoke-critical | smoke-warning | smoke-info | smoke-resolved
 	PYTHONPATH=agent $(PYTHON) tests/test_teams_notifier.py $*
+
+demo: ## Demo completa: injeta os 4 cenários de alerta no agente local (requer make run)
+	./scripts/demo.sh
+
+demo-%: ## Demo de um cenário específico: make demo-zeebe | demo-namespace | demo-backpressure | demo-resolved
+	./scripts/demo.sh --scenario $*
 
 # ── Qualidade ──────────────────────────────────────────────────────────────────
 

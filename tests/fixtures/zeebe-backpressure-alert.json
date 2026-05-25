@@ -1,0 +1,35 @@
+{
+  "receiver": "camunda-aiops-webhook",
+  "status": "firing",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "ZeebeBackpressureGrowing",
+        "namespace": "camunda",
+        "pod": "camunda-zeebe-gateway-0",
+        "severity": "critical"
+      },
+      "annotations": {
+        "summary": "Zeebe backpressure crescendo — derivada positiva por 3min",
+        "description": "A derivada de backpressure do Zeebe está acima de 0.5 req/s por mais de 3 minutos consecutivos. O gateway está rejeitando requisições e o sistema está saturado. Reduza a carga ou escale o cluster imediatamente."
+      },
+      "startsAt": "2026-05-24T10:00:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://localhost:9090/graph?g0.expr=deriv"
+    }
+  ],
+  "groupLabels": {
+    "alertname": "ZeebeBackpressureGrowing"
+  },
+  "commonLabels": {
+    "alertname": "ZeebeBackpressureGrowing",
+    "severity": "critical"
+  },
+  "commonAnnotations": {
+    "summary": "Zeebe backpressure crescendo — derivada positiva por 3min"
+  },
+  "externalURL": "http://localhost:9093",
+  "version": "4",
+  "groupKey": "{}/{alertname=~\"Zeebe.*|Camunda.*\"}:{alertname=\"ZeebeBackpressureGrowing\"}"
+}
