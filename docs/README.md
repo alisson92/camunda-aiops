@@ -38,6 +38,7 @@ Revisões periódicas aplicadas ao projeto antes de apresentação ao time.
 | [revisao-E-aiops-best-practices.md](revisao-E-aiops-best-practices.md) | Auditoria AIOps: correlation ID, `aiops_llm_rounds_used`, runbook reload, `/health` enriquecido |
 | [revisao-F-alerting.md](revisao-F-alerting.md) | Alerting strategy: 2 novos alertas (Gateway latency, PVC storage), label `component`, `runbook_url` por alerta |
 | [revisao-F-grafana-migration.md](revisao-F-grafana-migration.md) | Migração de 15 alertas Grafana para PrometheusRule IaC — 5 arquivos, decisões de split de severidade |
+| [revisao-G-documentacao-final.md](revisao-G-documentacao-final.md) | Revisão final pré-demo: consistência de documentação, correção de counts, versionamento 0.13.0 |
 
 ---
 

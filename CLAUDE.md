@@ -66,7 +66,7 @@ make demo-backpressure           # ZeebeBackpressureGrowing (critical — maior 
 make demo-resolved               # alerta encerrado (lifecycle completo)
 
 # Testes
-make test                        # 88 testes unitários + cobertura 100%
+make test                        # 219 testes unitários + cobertura 100%
 make test-integration            # Prometheus real via Testcontainers
 make test-e2e                    # ciclo completo com mock HTTP
 
@@ -95,9 +95,10 @@ Dashboard após import: `http://localhost:3000/d/camunda-local-forecasting/`
 agent/            Pacote Python do agente AIOps (config, tools, notifier, webhook)
 prompts/          System prompts versionados (v1, v2, ...) + GUIDELINES.md
 scripts/          Scripts operacionais: demo, check-metrics, load-generator, import-dashboard
-dashboards/       camunda-forecasting.json — 11 painéis divididos em 2 seções
+dashboards/       camunda-forecasting.json (forecasting) + camunda-aiops-agent.json (observabilidade do agente)
+alerting/         7 PrometheusRule CRDs: Camunda, Elasticsearch, Kubernetes nós/pods
 tests/
-  unit/           88 testes unitários (sem infraestrutura)
+  unit/           219 testes unitários (sem infraestrutura)
   integration/    7 testes — Prometheus real via Testcontainers
   e2e/            3 testes — ciclo completo: webhook → agente → Prometheus → LLM → Teams
   fixtures/       Payloads JSON do Alertmanager (usados por testes e demo)

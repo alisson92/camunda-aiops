@@ -8,6 +8,25 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [0.13.0] — 2026-05-25
+
+### Added (Revisão G — Documentação final e consistência)
+- `docs/revisao-G-documentacao-final.md` — laudo desta revisão
+
+### Changed (Revisão G)
+- `README.md`: árvore `alerting/` expandida (3 → 7 arquivos); `dashboards/` com `camunda-aiops-agent.json`; seção "Alertas preditivos" expandida para cobrir todos os 7 arquivos; contagem de testes `218` → `219`; per-file counts corrigidos (`test_webhook_receiver` 36→37, `test_teams_notifier_unit` 32→34); tabela de suítes `159` → `219`
+- `CLAUDE.md`: contagem de testes `88` → `219`; seção de arquitetura reflete `alerting/` e segundo dashboard
+- `pyproject.toml`: versão `0.12.0` → `0.13.0`
+- `CHANGELOG.md`: `[Unreleased]` convertido em `[0.13.0]`
+
+### Fixed (Revisão G)
+- `agent/webhook_receiver.py`: loop de startup extraído para `_reload_runbooks_from_kb()` — corpo do loop era letra morta em CI (ambiente limpo, sem runbooks em disco); cobertura volta a 100% (219 testes, 605 statements)
+- `alerting/*.yaml`: `namespace=~"jorn.*"` → `namespace=~"camunda.*|jorn.*"` nos 4 arquivos migrados do Grafana — alertas agora capuram pods do Kind local (`namespace=camunda`) e do ambiente de hml dos colegas
+
+---
+
 ### Added (Revisão F — Migração de alertas Grafana para PrometheusRule IaC)
 - `alerting/elasticsearch-rules.yaml` — 3 regras: `ElasticsearchClusterHealthCritical`, `ElasticsearchClusterHealthWarning` (severidade dinâmica dividida em dois alertas), `ElasticsearchUnassignedShards`
 - `alerting/kubernetes-pod-rules.yaml` — 10 regras: `KubePodNotReady`, `KubeStatefulSetReplicasMismatch`, `KubeDeploymentReplicasMismatch`, `KubePodHighMemory`/`Critical`, `KubePodCrashLooping`, `KubePodHighCPU`/`Critical`, `KubePodMultipleRestarts`, `KubePodOOMKilled`

@@ -40,11 +40,18 @@ camunda-aiops/
 │   ├── system-prompt-v2.md       # system prompt v2 — versão em uso
 │   └── GUIDELINES.md             # regras de versionamento de prompts
 ├── alerting/
-│   ├── camunda-forecasting-rules.yaml      # PrometheusRules preditivas (IaC)
+│   ├── camunda-forecasting-rules.yaml      # PrometheusRules preditivas Zeebe/Camunda
+│   ├── camunda-latency-rules.yaml          # ZeebeGatewayLatencyHigh (p99 gRPC)
+│   ├── camunda-storage-rules.yaml          # ZeebePVCUsagePredictedFull (predict_linear)
+│   ├── elasticsearch-rules.yaml            # saúde do cluster + shards não alocados
+│   ├── kubernetes-node-rules.yaml          # condições adversas de nó
+│   ├── kubernetes-pod-rules.yaml           # NotReady, HighMemory/CPU, CrashLoop, OOM
+│   ├── kubernetes-camunda-ns-rules.yaml    # PVC errors, StatefulSet rollout
 │   ├── alertmanager-config-camunda.yaml    # CRD AlertmanagerConfig
 │   └── alertmanager-webhook-patch.yaml     # values patch para helm upgrade
 ├── dashboards/
-│   └── camunda-forecasting.json  # dashboard Grafana — 11 painéis
+│   ├── camunda-forecasting.json  # dashboard Grafana — forecasting Zeebe/Camunda (11 painéis)
+│   └── camunda-aiops-agent.json  # dashboard Grafana — observabilidade do agente AIOps
 ├── scripts/
 │   ├── run-cycle-test.sh         # ciclo completo automatizado com auto-recuperação
 │   ├── demo.sh                   # demo autossuficiente — inicia Ollama + agente + 4 cenários
@@ -55,13 +62,13 @@ camunda-aiops/
 │   └── import-dashboard.sh       # importa o dashboard via API do Grafana
 ├── tests/
 │   ├── fixtures/                 # payloads de alerta para testes
-│   ├── unit/                     # 218 testes unitários (sem infraestrutura)
+│   ├── unit/                     # 219 testes unitários (sem infraestrutura)
 │   │   ├── test_config.py        # 12 testes — carregamento do .env + _BRTFormatter + ALERT_FILTER_KEYWORDS
-│   │   ├── test_webhook_receiver.py  # 36 testes — endpoints FastAPI (incl. /runbook, /runbook/by-alert, /health)
+│   │   ├── test_webhook_receiver.py  # 37 testes — endpoints FastAPI (incl. /runbook, /runbook/by-alert, /health, startup reload)
 │   │   ├── test_reactive_agent.py    # 17 testes — loop agentic, alert_id, LLM_ROUNDS_USED
 │   │   ├── test_runbook_generator.py # 42 testes — geração, fallback, Markdown→HTML
 │   │   ├── test_tools.py             # 22 testes — queries Prometheus + _resolve_ts
-│   │   ├── test_teams_notifier_unit.py  # 32 testes — Adaptive Card e helpers
+│   │   ├── test_teams_notifier_unit.py  # 34 testes — Adaptive Card e helpers
 │   │   ├── test_metrics.py           # 11 testes — definição e registro das métricas (incl. LLM_ROUNDS_USED)
 │   │   ├── test_knowledge_base.py    # 37 testes — KB: init, search, scoring, persistência, get_runbooks
 │   │   └── test_alert_fixtures.py    # 7 testes — estrutura dos fixtures JSON
@@ -228,7 +235,7 @@ make smoke
 
 | Suíte | Testes | Infraestrutura | Cobertura |
 |---|---|---|---|
-| Unitários | 159 | Nenhuma | 100% (`fail_under = 100`) |
+| Unitários | 219 | Nenhuma | 100% (`fail_under = 100`) |
 | Integração | 7 | Docker — Prometheus real (Testcontainers) | — |
 | E2E | 3 | Docker — Prometheus real + LLM/Teams mock HTTP | — |
 
@@ -239,15 +246,21 @@ make smoke
 
 ---
 
-## Alertas preditivos
+## Alertas
 
-Três alertas configurados em `alerting/camunda-forecasting-rules.yaml`:
+7 arquivos de PrometheusRule cobrindo Camunda, Elasticsearch e infra Kubernetes (namespace `camunda.*`):
 
-| Alerta | Técnica | Threshold |
+| Arquivo | Alertas | Técnica |
 |---|---|---|
-| `ZeebeMemoryPredictedHigh` | `predict_linear` (30m) | heap G1 Old Gen > 85% do Xmx em 15min |
-| `ZeebeBackpressureGrowing` | `deriv` (10m) | derivada > 0.5 req/s por 3min |
-| `CamundaNamespaceMemoryPressure` | `predict_linear` (1h) | namespace camunda > 6 GB em 30min |
+| `camunda-forecasting-rules.yaml` | ZeebeMemoryPredictedHigh, ZeebeBackpressureGrowing, CamundaNamespaceMemoryPressure | `predict_linear`, `deriv` |
+| `camunda-latency-rules.yaml` | ZeebeGatewayLatencyHigh | `histogram_quantile` p99 > 2s |
+| `camunda-storage-rules.yaml` | ZeebePVCUsagePredictedFull | `predict_linear` horizonte 1h |
+| `elasticsearch-rules.yaml` | ElasticsearchClusterHealthCritical/Warning, ElasticsearchUnassignedShards | status metric |
+| `kubernetes-node-rules.yaml` | KubeNodeConditionAffectedPods, KubeNewNode | `kube_node_status_condition` |
+| `kubernetes-pod-rules.yaml` | KubePodNotReady, HighMemory/CPU (warning+critical), CrashLooping, MultipleRestarts, OOMKilled, ReplicasMismatch | `container_memory_working_set_bytes`, `rate()` |
+| `kubernetes-camunda-ns-rules.yaml` | KubePersistentVolumeErrors, StatefulSetGenerationMismatch, StatefulSetUpdateNotRolledOut | `kube_statefulset_*` |
+
+Todos os `runbook_url` apontam para `GET /runbook/by-alert/{AlertName}` no agente — sem URLs externas.
 
 ---
 
