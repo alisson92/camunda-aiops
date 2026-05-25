@@ -32,11 +32,11 @@ test-integration: ## Roda testes de integração contra containers Docker reais
 test-e2e: ## Roda testes E2E do ciclo completo (Docker + mock HTTP)
 	$(PYTEST) -m e2e -v
 
-smoke: ## Envia os 3 alertas de teste para o Teams (critical, warning, info)
-	PYTHONPATH=agent $(PYTHON) tests/test_teams_notifier.py
+smoke: ## Envia os 3 alertas de teste para o Teams; inicia port-forwards se Kind estiver ativo
+	./scripts/smoke.sh
 
 smoke-%: ## Envia um cenário específico: make smoke-critical | smoke-warning | smoke-info | smoke-resolved
-	PYTHONPATH=agent $(PYTHON) tests/test_teams_notifier.py $*
+	./scripts/smoke.sh $*
 
 demo: ## Demo completa: autossuficiente — inicia Ollama + agente, injeta 4 cenários, encerra tudo
 	./scripts/demo.sh
