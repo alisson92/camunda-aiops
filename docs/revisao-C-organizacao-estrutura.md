@@ -18,26 +18,15 @@ e a usabilidade do projeto por novos colaboradores.
 
 ## O que foi feito e por quê
 
-### 1. Correção das versões das GitHub Actions (bug crítico)
+### 1. Versões das GitHub Actions — revertidas (análise incorreta)
 
-**Problema:** Todas as occorrências de `actions/checkout` e `actions/setup-python`
-no `ci.yml` estavam pinadas em `@v6`, versão que não existe:
+**Contexto:** Foi assumido incorretamente que `actions/checkout@v6` e
+`actions/setup-python@v6` não existiam. As versões `@v6` estavam corretas e funcionais.
+A mudança para `@v4`/`@v5` quebrou o pipeline e foi revertida no commit seguinte.
 
-```yaml
-# antes — versão inexistente, CI falharia
-- uses: actions/checkout@v6
-- uses: actions/setup-python@v6
-```
-
-**Correção:**
-```yaml
-# depois — versões estáveis e existentes
-- uses: actions/checkout@v4
-- uses: actions/setup-python@v5
-```
-
-**Por quê é crítico:** o CI é a única camada que valida automaticamente qualidade
-antes de um merge. Com actions quebradas, a proteção deixa de existir silenciosamente.
+**Lição:** versões de actions são tags do repositório do GitHub — não seguem
+necessariamente o calendário de conhecimento do assistente. Sempre verificar com o
+mantenedor do projeto antes de alterar versões de CI que estavam funcionando.
 
 ---
 

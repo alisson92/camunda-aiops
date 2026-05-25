@@ -16,7 +16,7 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 - `pyproject.toml`: `[tool.ruff.lint]` com `select = ["E","W","F","I","UP"]`
 
 ### Changed (Revisão C)
-- `.github/workflows/ci.yml` — actions corrigidas: `checkout@v6`→`@v4`, `setup-python@v6`→`@v5` (versões inexistentes)
+- `.github/workflows/ci.yml` — actions revertidas para `@v6` após mudança incorreta para `@v4`/`@v5`
 - `scripts/check-metrics.sh` — header atualizado: nome e comandos de uso corrigidos (ainda referenciava `01-check-metrics.sh`)
 - `prompts/GUIDELINES.md` — estrutura da pasta atualizada: v1 depreciado, v2 listado como versão em uso
 - `agent/config.py`, `agent/tools.py`, `agent/runbook_generator.py`, `agent/webhook_receiver.py` — 9 violações lint auto-corrigidas pelo ruff (`I001` import order, `UP017` `datetime.UTC`)
