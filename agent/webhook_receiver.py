@@ -42,14 +42,19 @@ setup_logging()
 # Base de conhecimento — carregada uma vez na inicialização do processo
 _kb = KnowledgeBase()
 
-# Repovoar stores de runbooks a partir da KB (runbooks persistidos em ciclos anteriores)
-# Garante que /runbook/{id} e /runbook/by-alert/{name} funcionem após restart do agente
-for _doc_id, _doc in _kb.get_runbooks().items():
-    _runbooks[_doc_id] = (_doc.alert_name, _doc.content)
-    if _doc.alert_name:
-        _latest_runbook_by_name[_doc.alert_name] = _doc_id
-
 logger = logging.getLogger(__name__)
+
+
+def _reload_runbooks_from_kb() -> None:
+    """Repovoar stores de runbooks a partir da KB (runbooks persistidos em ciclos anteriores).
+    Garante que /runbook/{id} e /runbook/by-alert/{name} funcionem após restart do agente."""
+    for doc_id, doc in _kb.get_runbooks().items():
+        _runbooks[doc_id] = (doc.alert_name, doc.content)
+        if doc.alert_name:
+            _latest_runbook_by_name[doc.alert_name] = doc_id
+
+
+_reload_runbooks_from_kb()
 
 app = FastAPI(title="Camunda AIOps Webhook Receiver")
 

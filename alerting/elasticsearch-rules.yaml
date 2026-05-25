@@ -25,7 +25,7 @@ spec:
         - alert: ElasticsearchClusterHealthCritical
           expr: |
             sum by (namespace, cluster) (
-              elasticsearch_cluster_health_status{namespace=~"jorn.*", color="red"}
+              elasticsearch_cluster_health_status{namespace=~"camunda.*|jorn.*", color="red"}
             ) > 0
           for: 5m
           labels:
@@ -51,7 +51,7 @@ spec:
         - alert: ElasticsearchClusterHealthWarning
           expr: |
             sum by (namespace, cluster) (
-              elasticsearch_cluster_health_status{namespace=~"jorn.*", color="yellow"}
+              elasticsearch_cluster_health_status{namespace=~"camunda.*|jorn.*", color="yellow"}
             ) > 0
           for: 5m
           labels:
@@ -77,7 +77,7 @@ spec:
         - alert: ElasticsearchUnassignedShards
           expr: |
             sum by (cluster, namespace) (
-              elasticsearch_cluster_health_unassigned_shards{namespace=~"jorn.*"}
+              elasticsearch_cluster_health_unassigned_shards{namespace=~"camunda.*|jorn.*"}
             ) > 0
           for: 10m
           labels:

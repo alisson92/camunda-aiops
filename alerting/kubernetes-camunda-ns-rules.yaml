@@ -54,9 +54,9 @@ spec:
         # Origem: Grafana folder "Kubernetes - Pod" (Kubernetes - Camunda NS)
         - alert: KubeStatefulSetGenerationMismatch
           expr: |
-            kube_statefulset_metadata_generation{namespace=~"jorn.*"}
+            kube_statefulset_metadata_generation{namespace=~"camunda.*|jorn.*"}
             !=
-            kube_statefulset_status_observed_generation{namespace=~"jorn.*"}
+            kube_statefulset_status_observed_generation{namespace=~"camunda.*|jorn.*"}
           for: 10m
           labels:
             severity: warning
@@ -84,15 +84,15 @@ spec:
         - alert: KubeStatefulSetUpdateNotRolledOut
           expr: |
             (
-              kube_statefulset_status_update_revision{namespace=~"jorn.*"}
+              kube_statefulset_status_update_revision{namespace=~"camunda.*|jorn.*"}
               !=
-              kube_statefulset_status_current_revision{namespace=~"jorn.*"}
+              kube_statefulset_status_current_revision{namespace=~"camunda.*|jorn.*"}
             )
             and
             (
-              kube_statefulset_status_replicas_updated{namespace=~"jorn.*"}
+              kube_statefulset_status_replicas_updated{namespace=~"camunda.*|jorn.*"}
               !=
-              kube_statefulset_status_replicas{namespace=~"jorn.*"}
+              kube_statefulset_status_replicas{namespace=~"camunda.*|jorn.*"}
             )
           for: 15m
           labels:

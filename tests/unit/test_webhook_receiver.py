@@ -34,6 +34,38 @@ def client():
 
 
 # ---------------------------------------------------------------------------
+# _reload_runbooks_from_kb — startup reload path
+# ---------------------------------------------------------------------------
+
+
+class TestStartupReload:
+    def test_reload_populates_both_dicts(self):
+        """Cobre o corpo do loop de reload — executado apenas quando KB tem runbooks em disco."""
+        from unittest.mock import patch
+
+        from knowledge_base import Document
+        from webhook_receiver import _kb, _latest_runbook_by_name, _reload_runbooks_from_kb, _runbooks
+
+        mock_doc = Document(
+            doc_id="reload-test-00000000",
+            title="Runbook: ReloadTestAlert",
+            content="# Runbook content",
+            alert_name="ReloadTestAlert",
+            source="generated",
+        )
+        with patch.object(_kb, "get_runbooks", return_value={"reload-test-00000000": mock_doc}):
+            _reload_runbooks_from_kb()
+
+        try:
+            assert "reload-test-00000000" in _runbooks
+            assert _runbooks["reload-test-00000000"] == ("ReloadTestAlert", "# Runbook content")
+            assert _latest_runbook_by_name.get("ReloadTestAlert") == "reload-test-00000000"
+        finally:
+            _runbooks.pop("reload-test-00000000", None)
+            _latest_runbook_by_name.pop("ReloadTestAlert", None)
+
+
+# ---------------------------------------------------------------------------
 # /health
 # ---------------------------------------------------------------------------
 

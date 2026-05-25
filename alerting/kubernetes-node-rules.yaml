@@ -27,7 +27,7 @@ spec:
         - alert: KubeNodeConditionAffectedPods
           expr: |
             sum by (pod, namespace, node, condition, status, created_by_kind) (
-              kube_pod_info{namespace=~"jorn.*"}
+              kube_pod_info{namespace=~"camunda.*|jorn.*"}
             )
             * on (node) group_left(condition, status)
             max by (node, condition, status) (
@@ -35,7 +35,7 @@ spec:
             )
             OR
             sum by (pod, namespace, node, condition, status, created_by_kind) (
-              kube_pod_info{namespace=~"jorn.*"}
+              kube_pod_info{namespace=~"camunda.*|jorn.*"}
             )
             * on (node) group_left(condition, status)
             max by (node, condition, status) (
@@ -43,7 +43,7 @@ spec:
             )
             OR
             sum by (pod, namespace, node, condition, status, created_by_kind) (
-              kube_pod_info{namespace=~"jorn.*"}
+              kube_pod_info{namespace=~"camunda.*|jorn.*"}
             )
             * on (node) group_left(condition, status)
             max by (node, condition, status) (
@@ -74,11 +74,11 @@ spec:
           expr: |
             (
               count by (node) (
-                kube_pod_info{namespace=~"jorn.*"} offset 5m
+                kube_pod_info{namespace=~"camunda.*|jorn.*"} offset 5m
               )
             ) unless (
               count by (node) (
-                kube_pod_info{namespace=~"jorn.*"}
+                kube_pod_info{namespace=~"camunda.*|jorn.*"}
               )
             ) unless (
               kube_node_info
