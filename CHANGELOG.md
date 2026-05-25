@@ -8,6 +8,15 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added (Revisão F — Alerting strategy e cobertura de PrometheusRules)
+- `alerting/camunda-latency-rules.yaml` — novo PrometheusRule: `ZeebeGatewayLatencyHigh` (histogram_quantile p99 > 2s, for 5m, severity warning) — cobre o único ponto de entrada gRPC/REST sem alerta
+- `alerting/camunda-storage-rules.yaml` — novo PrometheusRule: `ZeebePVCUsagePredictedFull` (predict_linear sobre kubelet_volume_stats, horizonte 1h, for 10m, severity critical) — cobre disco RocksDB que causa parada imediata de processamento BPMN se cheio
+- `docs/revisao-F-alerting.md` — laudo completo desta revisão
+
+### Changed (Revisão F)
+- `alerting/camunda-forecasting-rules.yaml`: label `component` adicionada em todos os alertas (`zeebe`, `zeebe-gateway`, `camunda`); `runbook_url` atualizado por alerta (ZeebeMemoryPredictedHigh e ZeebeBackpressureGrowing apontam para exemplos KB curados)
+- `docs/README.md`: entrada da Revisão F adicionada à tabela de revisões
+
 ### Added (Revisão E — AIOps best practices)
 - `agent/metrics.py`: `LLM_ROUNDS_USED` — novo Histogram `aiops_llm_rounds_used` (buckets 1–6) para instrumentar quantas rodadas de tool use cada análise consome
 - `agent/knowledge_base.py`: método público `get_runbooks()` — retorna apenas documentos gerados (`source="generated"`), usado para recarregar o store de runbooks no startup

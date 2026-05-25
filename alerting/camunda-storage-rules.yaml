@@ -1,0 +1,59 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: camunda-storage-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+    app: camunda-forecasting
+spec:
+  groups:
+    - name: camunda.forecasting.storage
+      interval: 1m
+      rules:
+
+        # Alerta 5: PVC do Zeebe projetado para atingir 85% de uso em 1 hora
+        #
+        # Por que monitorar disco via PVC e não filesystem do container?
+        # O Zeebe usa um PersistentVolume dedicado para dados do RocksDB (WAL + SST files).
+        # container_fs_usage_bytes inclui a imagem e layers overlay, distorcendo o valor real.
+        # kubelet_volume_stats_used_bytes reflete exclusivamente o uso do PVC montado.
+        #
+        # Por que critical (não warning)?
+        # Disco cheio no Zeebe = perda imediata de capacidade de escrita no RocksDB =
+        # parada de processamento de instâncias BPMN. Não há degradação gradual — o Zeebe
+        # para de aceitar novos trabalhos quando o disco está cheio.
+        #
+        # Janela [2h] = 2× o horizonte de 3600s (1h) — regra: janela >= 2× horizonte.
+        # predict_linear em disco é ideal: crescimento monotônico, sem sazonalidade de GC.
+        - alert: ZeebePVCUsagePredictedFull
+          expr: |
+            (
+              predict_linear(
+                kubelet_volume_stats_used_bytes{
+                  namespace="camunda",
+                  persistentvolumeclaim=~"data-camunda-zeebe-.*"
+                }[2h],
+                3600
+              )
+              /
+              kubelet_volume_stats_capacity_bytes{
+                namespace="camunda",
+                persistentvolumeclaim=~"data-camunda-zeebe-.*"
+              }
+            ) > 0.85
+          for: 10m
+          labels:
+            severity: critical
+            team: platform
+            component: zeebe
+            etapa: "1"
+          annotations:
+            summary: "Zeebe PVC {{ $labels.persistentvolumeclaim }} — uso projetado acima de 85% em 1h"
+            description: |
+              Projeção de uso: {{ $value | humanizePercentage }} em 1 hora.
+              PVC: {{ $labels.persistentvolumeclaim }}.
+              Disco cheio no Zeebe causa parada imediata de processamento BPMN.
+              Ação imediata: verificar compaction do RocksDB ou expandir o PVC.
+              kubectl exec -n camunda <pod> -- du -sh /usr/local/zeebe/data
+            runbook_url: "https://github.com/alisson92/camunda-aiops/blob/main/docs/etapa-1-prometheus-rules.md"

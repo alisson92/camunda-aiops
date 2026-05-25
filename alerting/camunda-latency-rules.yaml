@@ -1,0 +1,54 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: camunda-latency-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+    app: camunda-forecasting
+spec:
+  groups:
+    - name: camunda.latency.gateway
+      interval: 1m
+      rules:
+
+        # Alerta 4: latência p99 do Zeebe Gateway acima de 2 segundos por 5 minutos
+        #
+        # O Gateway é o único ponto de entrada gRPC/REST para o Zeebe — latência alta aqui
+        # impacta todos os clientes (workers, Operate, Tasklist, conectores).
+        #
+        # Por que p99 e não média?
+        # A média mascara picos. p99 captura o pior caso experimentado por 1% dos requests —
+        # que em um ambiente de workflows BPMN tipicamente são os jobs de maior SLA.
+        #
+        # Técnica: histogram_quantile sobre rate() de 5m.
+        # rate() normaliza para req/s no intervalo — necessário para histogramas cumulativos.
+        # sum by (le, pod): agrega buckets do mesmo pod sem misturar séries de pods diferentes.
+        #
+        # Threshold 2s: valor conservador para um ambiente local (Kind). Em produção EKS,
+        # ajustar para 0.5s dependendo do SLA definido.
+        - alert: ZeebeGatewayLatencyHigh
+          expr: |
+            histogram_quantile(0.99,
+              sum by (le, pod) (
+                rate(
+                  grpc_server_processing_duration_seconds_bucket{
+                    namespace="camunda",
+                    pod=~"camunda-zeebe-gateway-.*"
+                  }[5m]
+                )
+              )
+            ) > 2
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+            component: zeebe-gateway
+            etapa: "1"
+          annotations:
+            summary: "Zeebe Gateway {{ $labels.pod }} — latência p99 acima de 2s"
+            description: |
+              Latência p99 do Gateway: {{ $value | humanizeDuration }}.
+              Requests lentos no Gateway impactam workers, Operate e Tasklist.
+              Investigue: backpressure do broker, RocksDB, CPU throttling do pod.
+            runbook_url: "https://github.com/alisson92/camunda-aiops/blob/main/docs/etapa-1-prometheus-rules.md"

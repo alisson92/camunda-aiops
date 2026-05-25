@@ -36,6 +36,7 @@ Revisões periódicas aplicadas ao projeto antes de apresentação ao time.
 | [revisao-C-organizacao-estrutura.md](revisao-C-organizacao-estrutura.md) | Estrutura do repositório, CI, pyproject.toml, índices de navegação |
 | [revisao-D-contributing.md](revisao-D-contributing.md) | Criação do CONTRIBUTING.md — padrões, fluxo de contribuição, convenções |
 | [revisao-E-aiops-best-practices.md](revisao-E-aiops-best-practices.md) | Auditoria AIOps: correlation ID, `aiops_llm_rounds_used`, runbook reload, `/health` enriquecido |
+| [revisao-F-alerting.md](revisao-F-alerting.md) | Alerting strategy: 2 novos alertas (Gateway latency, PVC storage), label `component`, `runbook_url` por alerta |
 
 ---
 
