@@ -9,6 +9,12 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `prompts/system-prompt-v2.md` — adiciona campo URGÊNCIA (Imediata/Alta/Moderada) ao formato firing; formato dedicado para `resolved` (RESOLUÇÃO/CONFIRMAÇÃO/PRÓXIMO_PASSO); contexto dos 6 componentes Camunda 8; dois exemplos de output (critical + resolved)
+- `docs/etapa-9-system-prompt-v2.md` — documentação da etapa: problema, decisões, comparação v1 vs v2, rollback
+
+### Changed
+- `agent/prompts.py` — aponta para `system-prompt-v2.md` (era v1)
+- `prompts/GUIDELINES.md` — atualiza comando de teste para `make demo-backpressure` e `make demo-resolved`; registra v2 no histórico de versões
 - `scripts/demo.sh` — modo demo totalmente autossuficiente: inicia Ollama e o agente automaticamente se necessário, injeta os 4 cenários, encerra tudo via `trap`; suporta `--scenario`, `--dry-run`, `--list`, `--delay`, `--webhook-url`
 - `tests/fixtures/zeebe-backpressure-alert.json` — payload `ZeebeBackpressureGrowing` (critical) para ciclo de demo
 - `tests/fixtures/zeebe-resolved.json` — payload `ZeebeMemoryPredictedHigh` (resolved) para demonstrar lifecycle completo

@@ -9,7 +9,7 @@ def _load(filename: str) -> str:
     return (_PROMPTS_DIR / filename).read_text(encoding="utf-8")
 
 
-SYSTEM_PROMPT = _load("system-prompt-v1.md")
+SYSTEM_PROMPT = _load("system-prompt-v2.md")
 
 
 def build_user_message(alert_name: str, alert_labels: dict, alert_annotations: dict, status: str) -> str:

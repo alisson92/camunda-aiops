@@ -32,9 +32,10 @@ prompts/
 ## Como testar uma mudança de prompt
 
 1. Faça a alteração no arquivo `.md`
-2. Rode o agente com um alerta sintético:
+2. Rode a demo com um alerta sintético (sem Kind necessário):
    ```bash
-   cd agent && python3 test-teams-notification.py critical
+   make demo-backpressure   # cenário critical — maior exigência do prompt
+   make demo-resolved       # valida o formato RESOLUÇÃO/CONFIRMAÇÃO
    ```
 3. Avalie se a resposta segue o formato obrigatório definido no prompt
 4. Só commite se o output estiver dentro do esperado
@@ -69,3 +70,4 @@ Use apenas: listas com `-`, **negrito**, blocos de código com backticks.
 | Versão | Data | Autor | Descrição |
 |---|---|---|---|
 | v1 | 2026-05-23 | Alisson Lima | Versão inicial — fluxo obrigatório, queries PromQL prioritárias, formato estruturado de resposta |
+| v2 | 2026-05-24 | Alisson Lima | Adiciona URGÊNCIA ao formato firing; formato dedicado para resolved (RESOLUÇÃO/CONFIRMAÇÃO/PRÓXIMO_PASSO); contexto dos componentes Camunda 8; dois exemplos de output (critical + resolved) |

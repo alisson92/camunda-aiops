@@ -300,6 +300,8 @@ Trocar de LLM (Ollama → GPT-4 → Claude API) exige mudar apenas duas variáve
 | `docs/etapa-3-agente-reativo-claude-api.md` | Agente com Claude API (histórico) |
 | `docs/etapa-4-ollama-local-llm.md` | Migração para Ollama local |
 | `docs/fix-*.md` | Investigações e fixes documentados |
+| `prompts/system-prompt-v1.md` | System prompt original (preservado para rollback) |
+| `prompts/system-prompt-v2.md` | System prompt ativo — adiciona URGÊNCIA, formato resolved, contexto Camunda 8 |
 | `prompts/GUIDELINES.md` | Como versionar e testar prompts |
 
 ---
