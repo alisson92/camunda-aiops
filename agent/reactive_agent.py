@@ -21,9 +21,16 @@ logger = logging.getLogger(__name__)
 MAX_TOOL_ROUNDS = 6  # limite de segurança para o agentic loop
 
 
-def run_agent(alert_name: str, alert_labels: dict, alert_annotations: dict, status: str = "firing") -> str:
+def run_agent(
+    alert_name: str,
+    alert_labels: dict,
+    alert_annotations: dict,
+    status: str = "firing",
+    context_docs: list | None = None,
+) -> str:
     """
     Executa o loop do agente para um alerta recebido.
+    context_docs: documentos relevantes da KnowledgeBase injetados no contexto do LLM.
     Retorna a análise final como string.
     """
     # api_key="ollama" é um placeholder obrigatório pelo SDK — Ollama não valida o valor
@@ -31,7 +38,7 @@ def run_agent(alert_name: str, alert_labels: dict, alert_annotations: dict, stat
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": build_user_message(alert_name, alert_labels, alert_annotations, status)},
+        {"role": "user", "content": build_user_message(alert_name, alert_labels, alert_annotations, status, context_docs)},
     ]
 
     logger.info("Iniciando análise: alerta=%s status=%s modelo=%s", alert_name, status, OLLAMA_MODEL)

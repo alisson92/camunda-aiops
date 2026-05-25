@@ -28,3 +28,6 @@ Thumbs.db
 
 # Claude Code — configuração local com secrets (tokens de service account)
 .claude/settings.local.json
+
+# Runbooks gerados pelo agente em runtime (populado automaticamente)
+data/knowledge/runbooks/

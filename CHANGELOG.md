@@ -8,6 +8,19 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added (Etapa 12 — Few-shot + RAG)
+- `agent/knowledge_base.py` — `KnowledgeBase` com `add_document`, `search(alert_name, k)`, persistência de runbooks em `data/knowledge/runbooks/` e carregamento de exemplos curados de `data/knowledge/examples/`; scoring por match exato de alertname (+10) e sobreposição de tokens; sem dependência externa
+- `data/knowledge/examples/zeebe-backpressure-growing.md` — exemplo curado de análise ideal para alerta critical de backpressure (few-shot)
+- `data/knowledge/examples/zeebe-memory-predicted-high.md` — exemplo curado de análise ideal para alerta warning de heap JVM (few-shot)
+- `.gitignore`: `data/knowledge/runbooks/` ignorado (populado em runtime)
+
+### Changed (Etapa 12)
+- `agent/prompts.py` — `build_user_message` aceita `context_docs: list[Document] | None`; injeta seção "Contexto relevante — histórico do time" antes do alerta quando documentos são encontrados
+- `agent/reactive_agent.py` — `run_agent` aceita `context_docs: list | None` e repassa para `build_user_message`
+- `agent/webhook_receiver.py` — inicializa `_kb = KnowledgeBase()` na startup; busca contexto (`_kb.search`) antes de `run_agent`; persiste runbook no KB após geração via `_kb.add_document`
+- `tests/unit/test_reactive_agent.py` — 7 testes novos: `build_user_message` com e sem `context_docs` (curated/generated, vazio, None, doc sem alert_name)
+- `tests/unit/test_knowledge_base.py` — novo arquivo: 33 testes cobrindo init, load, add, search, scoring, persistência e reload
+
 ### Added (Etapa 11 — Runbook Generation)
 - `agent/runbook_generator.py` — módulo de geração de runbooks: `generate_runbook()` (segunda chamada LLM sem tool use), `_make_alert_id()` (slug URL-safe + MD5[:8]), `_infer_component()`, `_fallback_runbook()` (gerado localmente se LLM falhar), `_markdown_to_html()` (renderer Markdown→HTML sem dependência externa), `render_runbook_html()` (página HTML completa estilizada)
 - `GET /runbook/{alert_id}` em `webhook_receiver.py` — serve runbook em HTML; `alert_id` retornado no campo `runbook_id` da resposta do `/webhook`

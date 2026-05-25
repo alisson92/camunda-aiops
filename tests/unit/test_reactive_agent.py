@@ -10,6 +10,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from knowledge_base import Document
+from prompts import build_user_message
 from reactive_agent import MAX_TOOL_ROUNDS, run_agent
 
 
@@ -193,6 +195,42 @@ class TestRunAgentRoundLimit:
 # ---------------------------------------------------------------------------
 # Contexto do alerta passado ao LLM
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# build_user_message — injeção de context_docs
+# ---------------------------------------------------------------------------
+
+
+class TestBuildUserMessage:
+    def test_without_context_docs_contains_alert_name(self):
+        msg = build_user_message("ZeebeMemoryPredictedHigh", {"severity": "warning"}, {}, "firing")
+        assert "ZeebeMemoryPredictedHigh" in msg
+
+    def test_with_context_docs_injects_header(self):
+        doc = Document("id", "Runbook: ZeebeAlert", "conteúdo do runbook", alert_name="ZeebeAlert", source="generated")
+        msg = build_user_message("ZeebeAlert", {}, {}, "firing", context_docs=[doc])
+        assert "Contexto relevante" in msg
+        assert "Runbook anterior" in msg
+        assert "conteúdo do runbook" in msg
+
+    def test_curated_doc_labeled_as_example(self):
+        doc = Document("id", "Exemplo", "conteúdo", alert_name="ZeebeAlert", source="curated")
+        msg = build_user_message("ZeebeAlert", {}, {}, "firing", context_docs=[doc])
+        assert "Exemplo de análise" in msg
+
+    def test_empty_context_docs_skips_header(self):
+        msg = build_user_message("ZeebeAlert", {}, {}, "firing", context_docs=[])
+        assert "Contexto relevante" not in msg
+
+    def test_none_context_docs_skips_header(self):
+        msg = build_user_message("ZeebeAlert", {}, {}, "firing", context_docs=None)
+        assert "Contexto relevante" not in msg
+
+    def test_alert_name_used_when_doc_alert_name_empty(self):
+        doc = Document("id", "Meu Título", "conteúdo", alert_name="", source="generated")
+        msg = build_user_message("ZeebeAlert", {}, {}, "firing", context_docs=[doc])
+        assert "Meu Título" in msg
 
 
 class TestRunAgentContext:

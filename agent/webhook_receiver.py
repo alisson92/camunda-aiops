@@ -24,6 +24,7 @@ from metrics import (
     TEAMS_NOTIFICATIONS,
     WEBHOOKS_RECEIVED,
 )
+from knowledge_base import KnowledgeBase
 from reactive_agent import run_agent
 from runbook_generator import generate_runbook, render_runbook_html
 from teams_notifier import send_alert_to_teams
@@ -32,6 +33,9 @@ from teams_notifier import send_alert_to_teams
 _runbooks: dict[str, tuple[str, str]] = {}
 
 setup_logging()
+
+# Base de conhecimento — carregada uma vez na inicialização do processo
+_kb = KnowledgeBase()
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Camunda AIOps Webhook Receiver")
@@ -83,12 +87,17 @@ async def alertmanager_webhook(request: Request):
             ALERTS_FILTERED.inc()
             continue
 
+        context_docs = _kb.search(alert_name, k=2)
+        if context_docs:
+            logger.info("KB: %d doc(s) relevante(s) para %s", len(context_docs), alert_name)
+
         with ANALYSIS_DURATION.time():
             analysis = run_agent(
                 alert_name=alert_name,
                 alert_labels=labels,
                 alert_annotations=annotations,
                 status=status,
+                context_docs=context_docs,
             )
 
         severity = labels.get("severity", "unknown")
@@ -105,6 +114,12 @@ async def alertmanager_webhook(request: Request):
             )
             _runbooks[runbook_id] = (alert_name, runbook_md)
             logger.info("Runbook armazenado: id=%s", runbook_id)
+            _kb.add_document(
+                doc_id=runbook_id,
+                title=f"Runbook: {alert_name}",
+                content=runbook_md,
+                alert_name=alert_name,
+            )
 
         generated_runbook_url = (
             f"{AGENT_PUBLIC_URL}/runbook/{runbook_id}" if runbook_id else ""
