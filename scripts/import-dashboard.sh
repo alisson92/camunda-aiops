@@ -2,8 +2,10 @@
 # =============================================================================
 # import-dashboard.sh
 #
-# Finalidade: importar o dashboard de forecasting direto via API do Grafana
-# (sem precisar clicar em import na UI)
+# Finalidade: importar todos os dashboards de dashboards/ via API do Grafana.
+# Idempotente — pula dashboards que já existem (mesmo uid), importa apenas
+# os ausentes. Novos arquivos em dashboards/*.json são importados automaticamente
+# sem precisar alterar este script.
 #
 # Uso:
 #   ./scripts/import-dashboard.sh
@@ -19,10 +21,9 @@ GRAFANA_URL="${GRAFANA_URL:-http://localhost:3000}"
 GRAFANA_USER="${GRAFANA_USER:-admin}"
 # Sem default de senha — deve ser passada via variável de ambiente ou flag
 # para não criar falsa sensação de segurança com valor hardcoded.
-# Exemplo: GRAFANA_PASS=grafana-secret ./03-import-dashboard.sh
 GRAFANA_PASS="${GRAFANA_PASS:-}"
 
-DASHBOARD_FILE="$(dirname "$0")/../dashboards/camunda-forecasting.json"
+DASHBOARDS_DIR="$(dirname "$0")/../dashboards"
 
 GREEN='\033[0;32m'; CYAN='\033[0;36m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; NC='\033[0m'
 
@@ -85,41 +86,58 @@ elif [[ "$HTTP_AUTH" != "200" ]]; then
 fi
 echo -e "${GREEN}✓${NC} Credenciais válidas"
 
-echo -e "${CYAN}→${NC} Importando dashboard no Grafana..."
+# =============================================================================
+# Importar todos os arquivos *.json em dashboards/ — idempotente por uid.
+# Consulta a API antes de importar: pula se o uid já existir, importa se não.
+# Novos dashboards adicionados à pasta são importados automaticamente.
+# =============================================================================
+IMPORTED=0
+SKIPPED=0
 
-# Montar payload — a API do Grafana espera o JSON dentro de um wrapper "dashboard"
-PAYLOAD=$(python3 -c "
-import json, sys
+for DASHBOARD_FILE in "${DASHBOARDS_DIR}"/*.json; do
+  TITLE=$(python3 -c "import json; d=json.load(open('${DASHBOARD_FILE}')); print(d.get('title','?'))" 2>/dev/null)
+  UID=$(python3 -c "import json; d=json.load(open('${DASHBOARD_FILE}')); print(d.get('uid',''))" 2>/dev/null)
+
+  # Verificar se uid já existe no Grafana antes de importar
+  if [[ -n "$UID" ]]; then
+    HTTP_CHECK=$(curl -s -o /dev/null -w "%{http_code}" \
+      -u "${GRAFANA_USER}:${GRAFANA_PASS}" \
+      "${GRAFANA_URL}/api/dashboards/uid/${UID}")
+    if [[ "$HTTP_CHECK" == "200" ]]; then
+      echo -e "  ${YELLOW}→ já existe:${NC} ${TITLE} (uid: ${UID})"
+      SKIPPED=$((SKIPPED + 1))
+      continue
+    fi
+  fi
+
+  echo -e "${CYAN}→${NC} Importando: ${TITLE}..."
+
+  PAYLOAD=$(python3 -c "
+import json
 with open('${DASHBOARD_FILE}') as f:
     dashboard = json.load(f)
-# Remover id para forçar criação (não update)
 dashboard.pop('id', None)
 payload = {
     'dashboard': dashboard,
     'overwrite': True,
     'folderId': 0,
-    'message': 'Importado via 03-import-dashboard.sh'
+    'message': 'Importado via import-dashboard.sh'
 }
 print(json.dumps(payload))
 ")
 
-# =============================================================================
-# Import: captura HTTP status e body separadamente para diagnóstico preciso
-# -s silencia progresso, -w captura status, -o captura body
-# =============================================================================
-BODY_FILE=$(mktemp)
-HTTP_IMPORT=$(curl -s -o "${BODY_FILE}" -w "%{http_code}" \
-  -X POST "${GRAFANA_URL}/api/dashboards/db" \
-  -H "Content-Type: application/json" \
-  -u "${GRAFANA_USER}:${GRAFANA_PASS}" \
-  -d "${PAYLOAD}")
-RESPONSE=$(cat "${BODY_FILE}")
-rm -f "${BODY_FILE}"
+  BODY_FILE=$(mktemp)
+  HTTP_IMPORT=$(curl -s -o "${BODY_FILE}" -w "%{http_code}" \
+    -X POST "${GRAFANA_URL}/api/dashboards/db" \
+    -H "Content-Type: application/json" \
+    -u "${GRAFANA_USER}:${GRAFANA_PASS}" \
+    -d "${PAYLOAD}")
+  RESPONSE=$(cat "${BODY_FILE}")
+  rm -f "${BODY_FILE}"
 
-if [[ "$HTTP_IMPORT" != "200" ]]; then
-  echo -e "${RED}ERRO: Import falhou (HTTP ${HTTP_IMPORT})${NC}"
-  echo "  Resposta da API:"
-  echo "$RESPONSE" | python3 -c "
+  if [[ "$HTTP_IMPORT" != "200" ]]; then
+    echo -e "  ${RED}ERRO ao importar ${TITLE} (HTTP ${HTTP_IMPORT})${NC}"
+    echo "$RESPONSE" | python3 -c "
 import json, sys
 try:
     d = json.load(sys.stdin)
@@ -127,16 +145,22 @@ try:
 except:
     print(sys.stdin.read())
 " 2>/dev/null || echo "$RESPONSE"
-  exit 1
-fi
+    continue
+  fi
 
-URL=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('url', '?'))" 2>/dev/null || echo "?")
+  URL=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('url',''))" 2>/dev/null || echo "")
+  echo -e "  ${GREEN}✓${NC} ${TITLE}"
+  [[ -n "$URL" ]] && echo -e "     ${GRAFANA_URL}${URL}"
+  IMPORTED=$((IMPORTED + 1))
+done
 
-echo -e "${GREEN}✓ Dashboard importado com sucesso!${NC}"
-echo -e "  Acesse: ${GRAFANA_URL}${URL}"
 echo ""
-echo -e "${CYAN}Próximos passos:${NC}"
-echo "  1. Abra o dashboard no Grafana"
-echo "  2. Aguarde pelo menos 5min de dados coletados"
-echo "  3. Execute make load ou ./scripts/load-generator.sh para gerar variação nas métricas"
-echo "  4. Observe os painéis de predict_linear e deriv() mudando em tempo real"
+echo -e "${GREEN}Concluído:${NC} ${IMPORTED} importado(s), ${SKIPPED} já existia(m)."
+
+if [[ $IMPORTED -gt 0 ]]; then
+  echo ""
+  echo -e "${CYAN}Próximos passos:${NC}"
+  echo "  1. Abra os dashboards no Grafana: ${GRAFANA_URL}"
+  echo "  2. Aguarde pelo menos 5min de dados coletados"
+  echo "  3. Execute make load para gerar variação nas métricas"
+fi

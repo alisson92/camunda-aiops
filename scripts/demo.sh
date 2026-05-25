@@ -236,6 +236,51 @@ ensure_port_forwards() {
     sleep 2
 }
 
+ensure_dashboards() {
+    local context
+    context=$(kubectl config current-context 2>/dev/null || echo "")
+
+    if [[ "$context" != kind-* ]]; then
+        log_warn "Kind não detectado — import de dashboards ignorado."
+        return
+    fi
+
+    # Aguarda o Grafana estar responsivo antes de importar
+    local grafana_url="http://localhost:3000"
+    local retries=0
+    until curl -s -o /dev/null -w "%{http_code}" "${grafana_url}/api/health" | grep -q "200"; do
+        retries=$((retries + 1))
+        if [[ $retries -ge 10 ]]; then
+            log_warn "Grafana não respondeu após 10s — import ignorado."
+            return
+        fi
+        sleep 1
+    done
+
+    # Recupera a senha do Grafana diretamente do Secret do Kubernetes
+    # Evita exigir GRAFANA_PASS no .env para a demo funcionar sem configuração extra
+    local grafana_pass
+    grafana_pass=$(kubectl get secret -n monitoring kube-prometheus-stack-grafana \
+        -o jsonpath='{.data.admin-password}' 2>/dev/null | base64 -d 2>/dev/null || echo "")
+
+    if [[ -z "$grafana_pass" ]]; then
+        log_warn "Não foi possível recuperar a senha do Grafana — import ignorado."
+        log_info "Para importar manualmente: GRAFANA_PASS=<senha> ./scripts/import-dashboard.sh"
+        return
+    fi
+
+    local script_dir
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+    # Delega ao import-dashboard.sh que percorre dashboards/*.json automaticamente
+    if GRAFANA_PASS="$grafana_pass" \
+        bash "${script_dir}/import-dashboard.sh" >> "${LOG_DIR}/dashboards.log" 2>&1; then
+        log_ok "Dashboards importados — ${grafana_url}"
+    else
+        log_warn "Import de dashboards falhou — veja ${LOG_DIR}/dashboards.log"
+    fi
+}
+
 # ── Envio de cenário ──────────────────────────────────────────────────────────
 
 send_scenario() {
@@ -370,6 +415,9 @@ if [[ "${DRY_RUN}" != "true" ]]; then
 
     log_step "Port-forwards (Grafana + Alertmanager)"
     ensure_port_forwards
+
+    log_step "Dashboards Grafana"
+    ensure_dashboards
 fi
 
 log_step "Executando cenários"
