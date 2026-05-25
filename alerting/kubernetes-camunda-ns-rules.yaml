@@ -1,0 +1,109 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: kubernetes-camunda-ns-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+    app: camunda-forecasting
+spec:
+  groups:
+    - name: kubernetes.camunda.namespace
+      interval: 1m
+      rules:
+
+        # PersistentVolume com status de erro no namespace camunda
+        #
+        # ATENÇÃO: Esta regra estava PAUSADA (isPaused: true) no Grafana — revisar
+        # threshold e semântica antes de aplicar ao cluster.
+        # noDataState: OK, execErrState: Error no Grafana (sem equivalente em PrometheusRule).
+        #
+        # kube_persistentvolume_status_phase: Bound=normal, Failed/Pending/Lost=problema.
+        # Filtra por namespace via join com kube_pod_spec_volumes_persistentvolumeclaims
+        # (PV é recurso de cluster, não tem namespace diretamente).
+        #
+        # Origem: Grafana folder "Kubernetes - Pod" (Kubernetes - Camunda NS)
+        - alert: KubePersistentVolumeErrors
+          expr: |
+            kube_persistentvolume_status_phase{
+              phase=~"Failed|Pending|Lost"
+            } == 1
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+            component: storage
+          annotations:
+            summary: "PersistentVolume {{ $labels.persistentvolume }} em fase de erro: {{ $labels.phase }}"
+            description: |
+              PersistentVolume {{ $labels.persistentvolume }} está na fase {{ $labels.phase }}
+              há mais de 5 minutos.
+              Fase Failed/Lost = dados potencialmente inacessíveis.
+              Verificar: kubectl describe pv {{ $labels.persistentvolume }}
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/KubePersistentVolumeErrors"
+
+        # StatefulSet com generation divergente (atualização pendente ou travada)
+        #
+        # ATENÇÃO: Esta regra estava PAUSADA (isPaused: true) no Grafana — revisar
+        # semântica antes de aplicar ao cluster.
+        #
+        # metadata_generation > status_observed_generation indica que uma atualização
+        # foi aplicada ao spec mas o controller ainda não a processou completamente.
+        # Pode indicar rollout travado, admission webhook bloqueando, ou controller com problema.
+        #
+        # Origem: Grafana folder "Kubernetes - Pod" (Kubernetes - Camunda NS)
+        - alert: KubeStatefulSetGenerationMismatch
+          expr: |
+            kube_statefulset_metadata_generation{namespace=~"jorn.*"}
+            !=
+            kube_statefulset_status_observed_generation{namespace=~"jorn.*"}
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+            component: pod
+          annotations:
+            summary: "StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} com generation divergente"
+            description: |
+              StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} tem generation
+              divergente do observado pelo controller há mais de 10 minutos.
+              Indica rollout travado ou controller com problema.
+              Verificar: kubectl rollout status statefulset/{{ $labels.statefulset }} -n {{ $labels.namespace }}
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/KubeStatefulSetGenerationMismatch"
+
+        # StatefulSet com atualização não propagada para todas as réplicas
+        #
+        # ATENÇÃO: Esta regra estava PAUSADA (isPaused: true) no Grafana — revisar
+        # semântica antes de aplicar ao cluster.
+        #
+        # Detecta quando um StatefulSet tem pods na revisão nova mas ainda há pods
+        # na revisão antiga — rollout iniciou mas não completou.
+        # updateRevision != currentRevision por mais de 15m indica rollout travado.
+        #
+        # Origem: Grafana folder "Kubernetes - Pod" (Kubernetes - Camunda NS)
+        - alert: KubeStatefulSetUpdateNotRolledOut
+          expr: |
+            (
+              kube_statefulset_status_update_revision{namespace=~"jorn.*"}
+              !=
+              kube_statefulset_status_current_revision{namespace=~"jorn.*"}
+            )
+            and
+            (
+              kube_statefulset_status_replicas_updated{namespace=~"jorn.*"}
+              !=
+              kube_statefulset_status_replicas{namespace=~"jorn.*"}
+            )
+          for: 15m
+          labels:
+            severity: warning
+            team: platform
+            component: pod
+          annotations:
+            summary: "StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} com rollout incompleto"
+            description: |
+              StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} tem atualização pendente
+              há mais de 15 minutos — nem todos os pods foram atualizados para a nova revisão.
+              Verificar: kubectl rollout status statefulset/{{ $labels.statefulset }} -n {{ $labels.namespace }}
+              kubectl get pods -n {{ $labels.namespace }} -l app={{ $labels.statefulset }} -o wide
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/KubeStatefulSetUpdateNotRolledOut"

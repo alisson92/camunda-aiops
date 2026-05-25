@@ -1,0 +1,94 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: elasticsearch-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+    app: camunda-forecasting
+spec:
+  groups:
+    - name: elasticsearch
+      interval: 1m
+      rules:
+
+        # Saúde do cluster Elasticsearch: status vermelho (critical)
+        #
+        # No Grafana, a regra original usa severidade dinâmica baseada em $labels.color:
+        #   color="red"    → critical
+        #   color="yellow" → warning
+        # PrometheusRule não suporta labels dinâmicos em severity, portanto foi dividida
+        # em dois alertas separados — padrão recomendado (awesome-prometheus-alerts).
+        #
+        # keepFiringFor: 2m do Grafana não tem equivalente em PrometheusRule.
+        # Origem: Grafana folder "Elasticsearch"
+        - alert: ElasticsearchClusterHealthCritical
+          expr: |
+            sum by (namespace, cluster) (
+              elasticsearch_cluster_health_status{namespace=~"jorn.*", color="red"}
+            ) > 0
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+            component: elasticsearch
+          annotations:
+            summary: "Cluster Elasticsearch {{ $labels.cluster }} em status CRITICAL (red)"
+            description: |
+              O cluster Elasticsearch {{ $labels.cluster }} no namespace {{ $labels.namespace }}
+              está com status vermelho (red) por mais de 5 minutos.
+              Status red = um ou mais shards primários não alocados — dados inacessíveis.
+              Verificar: shards não alocados, nós com problemas, logs do Elasticsearch.
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/ElasticsearchClusterHealthCritical"
+
+        # Saúde do cluster Elasticsearch: status amarelo (warning)
+        #
+        # color="yellow" indica que todos os shards primários estão alocados,
+        # mas um ou mais shards de réplica não estão — sem perda de dados ainda,
+        # mas resiliência reduzida.
+        #
+        # Origem: Grafana folder "Elasticsearch" (mesma regra, severidade dinâmica dividida)
+        - alert: ElasticsearchClusterHealthWarning
+          expr: |
+            sum by (namespace, cluster) (
+              elasticsearch_cluster_health_status{namespace=~"jorn.*", color="yellow"}
+            ) > 0
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+            component: elasticsearch
+          annotations:
+            summary: "Cluster Elasticsearch {{ $labels.cluster }} em status WARNING (yellow)"
+            description: |
+              O cluster Elasticsearch {{ $labels.cluster }} no namespace {{ $labels.namespace }}
+              está com status amarelo (yellow) por mais de 5 minutos.
+              Status yellow = réplicas não alocadas — resiliência reduzida, sem perda de dados.
+              Verificar: capacidade do cluster, nós adicionados recentemente, logs do Elasticsearch.
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/ElasticsearchClusterHealthWarning"
+
+        # Shards não alocados no Elasticsearch
+        #
+        # Shards unassigned indicam que o Elasticsearch não conseguiu alocar os shards
+        # em nenhum nó disponível. Pode ser causado por falta de nós, disk watermark
+        # atingido, ou configuração de alocação muito restritiva.
+        #
+        # Origem: Grafana folder "Elasticsearch"
+        - alert: ElasticsearchUnassignedShards
+          expr: |
+            sum by (cluster, namespace) (
+              elasticsearch_cluster_health_unassigned_shards{namespace=~"jorn.*"}
+            ) > 0
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+            component: elasticsearch
+          annotations:
+            summary: "Elasticsearch {{ $labels.cluster }} com shards não alocados"
+            description: |
+              O cluster Elasticsearch {{ $labels.cluster }} no namespace {{ $labels.namespace }}
+              possui shards não alocados por mais de 10 minutos.
+              Verificar: disk watermark, número de réplicas vs nós disponíveis,
+              configuração de alocação (include/exclude/require).
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/ElasticsearchUnassignedShards"

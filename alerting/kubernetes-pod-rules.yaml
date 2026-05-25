@@ -1,0 +1,324 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: kubernetes-pod-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+    app: camunda-forecasting
+spec:
+  groups:
+    - name: kubernetes.pod
+      interval: 1m
+      rules:
+
+        # Pod não está em estado Ready
+        #
+        # Detecta pods que não entraram em Ready nos últimos 5 minutos.
+        # Exclui pods Succeeded (jobs concluídos) e Failed (jobs com erro terminal).
+        #
+        # Origem: Grafana folder "Kubernetes - Pod"
+        - alert: KubePodNotReady
+          expr: |
+            sum by (pod, namespace, created_by_kind) (
+              kube_pod_status_phase{
+                namespace=~"jorn.*",
+                phase!~"Succeeded|Failed"
+              }
+            )
+            * on (pod, namespace)
+            group_left()
+            (
+              sum by (pod, namespace) (
+                kube_pod_status_ready{condition="false"}
+              ) > 0
+            )
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+            component: pod
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} não está Ready"
+            description: |
+              Pod {{ $labels.namespace }}/{{ $labels.pod }} (criado por: {{ $labels.created_by_kind }})
+              não está em estado Ready há mais de 5 minutos.
+              Verificar: kubectl describe pod {{ $labels.pod }} -n {{ $labels.namespace }}
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/KubePodNotReady"
+
+        # StatefulSet com número de réplicas divergente do desejado
+        #
+        # Detecta quando um StatefulSet não tem o número esperado de réplicas prontas.
+        # Diferente de Deployment, StatefulSet tem ordem de startup garantida —
+        # divergência pode indicar problema em pod específico da sequência.
+        #
+        # Origem: Grafana folder "Kubernetes - Pod"
+        - alert: KubeStatefulSetReplicasMismatch
+          expr: |
+            (
+              kube_statefulset_status_replicas_ready{namespace=~"jorn.*"}
+              !=
+              kube_statefulset_status_replicas{namespace=~"jorn.*"}
+            ) > 0
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+            component: pod
+          annotations:
+            summary: "StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} com réplicas divergentes"
+            description: |
+              StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} tem réplicas prontas
+              divergentes do desejado há mais de 5 minutos.
+              Verificar pods do StatefulSet: kubectl get pods -n {{ $labels.namespace }} -l app={{ $labels.statefulset }}
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/KubeStatefulSetReplicasMismatch"
+
+        # Deployment com número de réplicas divergente do desejado
+        #
+        # Origem: Grafana folder "Kubernetes - Pod"
+        - alert: KubeDeploymentReplicasMismatch
+          expr: |
+            (
+              kube_deployment_status_replicas_available{namespace=~"jorn.*"}
+              !=
+              kube_deployment_spec_replicas{namespace=~"jorn.*"}
+            ) > 0
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+            component: pod
+          annotations:
+            summary: "Deployment {{ $labels.namespace }}/{{ $labels.deployment }} com réplicas divergentes"
+            description: |
+              Deployment {{ $labels.namespace }}/{{ $labels.deployment }} tem réplicas disponíveis
+              divergentes do desejado há mais de 5 minutos.
+              Verificar: kubectl rollout status deployment/{{ $labels.deployment }} -n {{ $labels.namespace }}
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/KubeDeploymentReplicasMismatch"
+
+        # Alto uso de memória por pod: warning (> 80% do limit)
+        #
+        # O Grafana original usa severidade dinâmica baseada no valor:
+        #   > 80% do limit → warning
+        #   > 90% do limit → critical
+        # Dividido em dois alertas separados para compatibilidade com PrometheusRule.
+        #
+        # container_memory_working_set_bytes é a métrica correta para comparar com
+        # memory limit — exclui file cache, reflete o que o OOM killer considera.
+        #
+        # Origem: Grafana folder "Kubernetes - Pod"
+        - alert: KubePodHighMemory
+          expr: |
+            (
+              sum by (pod, namespace, container) (
+                container_memory_working_set_bytes{
+                  namespace=~"jorn.*",
+                  container!=""
+                }
+              )
+              /
+              sum by (pod, namespace, container) (
+                kube_pod_container_resource_limits{
+                  namespace=~"jorn.*",
+                  resource="memory",
+                  container!=""
+                }
+              )
+            ) > 0.80
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+            component: pod
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} com memória > 80% do limit"
+            description: |
+              Container {{ $labels.container }} no pod {{ $labels.namespace }}/{{ $labels.pod }}
+              está usando {{ $value | humanizePercentage }} do memory limit.
+              Risco de OOM kill se o uso continuar crescendo.
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/KubePodHighMemory"
+
+        # Alto uso de memória por pod: critical (> 90% do limit)
+        #
+        # Origem: Grafana folder "Kubernetes - Pod" (mesma regra, threshold separado)
+        - alert: KubePodHighMemoryCritical
+          expr: |
+            (
+              sum by (pod, namespace, container) (
+                container_memory_working_set_bytes{
+                  namespace=~"jorn.*",
+                  container!=""
+                }
+              )
+              /
+              sum by (pod, namespace, container) (
+                kube_pod_container_resource_limits{
+                  namespace=~"jorn.*",
+                  resource="memory",
+                  container!=""
+                }
+              )
+            ) > 0.90
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+            component: pod
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} com memória > 90% do limit — risco de OOM"
+            description: |
+              Container {{ $labels.container }} no pod {{ $labels.namespace }}/{{ $labels.pod }}
+              está usando {{ $value | humanizePercentage }} do memory limit.
+              OOM kill iminente — ação imediata necessária.
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/KubePodHighMemoryCritical"
+
+        # Pod em CrashLoopBackOff
+        #
+        # Taxa de restarts crescente indica que o container está falhando continuamente.
+        # rate() sobre 15m suaviza restarts únicos (deploy, rollout) e captura loops reais.
+        #
+        # Origem: Grafana folder "Kubernetes - Pod"
+        - alert: KubePodCrashLooping
+          expr: |
+            rate(
+              kube_pod_container_status_restarts_total{namespace=~"jorn.*"}[15m]
+            ) * 60 > 0
+          for: 15m
+          labels:
+            severity: warning
+            team: platform
+            component: pod
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} em CrashLoopBackOff"
+            description: |
+              Container {{ $labels.container }} no pod {{ $labels.namespace }}/{{ $labels.pod }}
+              está reiniciando continuamente (taxa: {{ $value | humanize }} restarts/min).
+              Verificar: kubectl logs {{ $labels.pod }} -n {{ $labels.namespace }} --previous
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/KubePodCrashLooping"
+
+        # Alto uso de CPU por pod: warning (> 80% do limit)
+        #
+        # Usa rate() de 5m sobre container_cpu_usage_seconds_total para obter uso médio
+        # recente, comparando com cpu limit do pod.
+        #
+        # Origem: Grafana folder "Kubernetes - Pod"
+        - alert: KubePodHighCPU
+          expr: |
+            (
+              sum by (pod, namespace, container) (
+                rate(container_cpu_usage_seconds_total{
+                  namespace=~"jorn.*",
+                  container!=""
+                }[5m])
+              )
+              /
+              sum by (pod, namespace, container) (
+                kube_pod_container_resource_limits{
+                  namespace=~"jorn.*",
+                  resource="cpu",
+                  container!=""
+                }
+              )
+            ) > 0.80
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+            component: pod
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} com CPU > 80% do limit"
+            description: |
+              Container {{ $labels.container }} no pod {{ $labels.namespace }}/{{ $labels.pod }}
+              está usando {{ $value | humanizePercentage }} do CPU limit.
+              Risco de throttling — latência pode aumentar.
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/KubePodHighCPU"
+
+        # Alto uso de CPU por pod: critical (> 90% do limit)
+        #
+        # Origem: Grafana folder "Kubernetes - Pod" (mesma regra, threshold separado)
+        - alert: KubePodHighCPUCritical
+          expr: |
+            (
+              sum by (pod, namespace, container) (
+                rate(container_cpu_usage_seconds_total{
+                  namespace=~"jorn.*",
+                  container!=""
+                }[5m])
+              )
+              /
+              sum by (pod, namespace, container) (
+                kube_pod_container_resource_limits{
+                  namespace=~"jorn.*",
+                  resource="cpu",
+                  container!=""
+                }
+              )
+            ) > 0.90
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+            component: pod
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} com CPU > 90% do limit"
+            description: |
+              Container {{ $labels.container }} no pod {{ $labels.namespace }}/{{ $labels.pod }}
+              está usando {{ $value | humanizePercentage }} do CPU limit.
+              Throttling severo em andamento — degradação de performance crítica.
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/KubePodHighCPUCritical"
+
+        # Pod com múltiplos restarts recentes
+        #
+        # Detecta pods que reiniciaram mais de 3 vezes nas últimas 2 horas.
+        # Difere do CrashLoopBackOff por usar increase() em janela maior,
+        # capturando padrões intermitentes que não acionam backoff contínuo.
+        #
+        # Origem: Grafana folder "Kubernetes - Pod"
+        - alert: KubePodMultipleRestarts
+          expr: |
+            increase(
+              kube_pod_container_status_restarts_total{namespace=~"jorn.*"}[2h]
+            ) > 3
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+            component: pod
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} com mais de 3 restarts em 2h"
+            description: |
+              Container {{ $labels.container }} no pod {{ $labels.namespace }}/{{ $labels.pod }}
+              reiniciou {{ $value | humanize }} vezes nas últimas 2 horas.
+              Verificar: logs, eventos e condição do nó.
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/KubePodMultipleRestarts"
+
+        # Pod terminado por OOM (Out of Memory)
+        #
+        # kube_pod_container_status_last_terminated_reason="OOMKilled" é definida
+        # somente após um OOM kill ocorrer. increase() de 1h detecta eventos recentes.
+        # OOM kill é o sintoma mais crítico de subutilização de memory limit.
+        #
+        # Origem: Grafana folder "Kubernetes - Pod"
+        - alert: KubePodOOMKilled
+          expr: |
+            increase(
+              kube_pod_container_status_restarts_total{namespace=~"jorn.*"}[1h]
+            ) > 0
+            and on (pod, namespace, container)
+            kube_pod_container_status_last_terminated_reason{
+              namespace=~"jorn.*",
+              reason="OOMKilled"
+            } == 1
+          for: 0m
+          labels:
+            severity: critical
+            team: platform
+            component: pod
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} sofreu OOM kill"
+            description: |
+              Container {{ $labels.container }} no pod {{ $labels.namespace }}/{{ $labels.pod }}
+              foi terminado por OOM (Out of Memory) na última hora.
+              Ação imediata: aumentar memory limit ou investigar memory leak.
+              kubectl describe pod {{ $labels.pod }} -n {{ $labels.namespace }}
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/KubePodOOMKilled"

@@ -8,6 +8,16 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added (Revisão F — Migração de alertas Grafana para PrometheusRule IaC)
+- `alerting/elasticsearch-rules.yaml` — 3 regras: `ElasticsearchClusterHealthCritical`, `ElasticsearchClusterHealthWarning` (severidade dinâmica dividida em dois alertas), `ElasticsearchUnassignedShards`
+- `alerting/kubernetes-pod-rules.yaml` — 10 regras: `KubePodNotReady`, `KubeStatefulSetReplicasMismatch`, `KubeDeploymentReplicasMismatch`, `KubePodHighMemory`/`Critical`, `KubePodCrashLooping`, `KubePodHighCPU`/`Critical`, `KubePodMultipleRestarts`, `KubePodOOMKilled`
+- `alerting/kubernetes-camunda-ns-rules.yaml` — 3 regras (todas com `isPaused` no Grafana): `KubePersistentVolumeErrors`, `KubeStatefulSetGenerationMismatch`, `KubeStatefulSetUpdateNotRolledOut`
+- `alerting/kubernetes-node-rules.yaml` — 2 regras: `KubeNodeConditionAffectedPods`, `KubeNewNode` (isPaused)
+- Todas as 18 regras usam `runbook_url: http://172.18.0.1:5001/runbook/by-alert/{AlertName}` — sem URLs externas (compliance/segurança)
+
+### Changed (Revisão F — Migração Grafana)
+- `.env.example`: `ALERT_FILTER_KEYWORDS` expandido para `Zeebe,Camunda,Kube,Elasticsearch` — cobre todos os novos alertas sem exigir alteração de código
+
 ### Added (runbook_url production-ready — endpoint by-alert)
 - `GET /runbook/by-alert/{alert_name}` — endpoint estático por alertname que sempre serve o runbook mais recente; permite que PrometheusRules usem uma URL fixa sem depender do ID dinâmico de cada ocorrência
 - `_latest_runbook_by_name` dict em `webhook_receiver.py` — índice `alertname → alert_id` mantido em sincronia a cada novo runbook gerado e recarregado da KB no startup

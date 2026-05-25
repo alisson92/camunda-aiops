@@ -1,0 +1,96 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: kubernetes-node-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+    app: camunda-forecasting
+spec:
+  groups:
+    - name: kubernetes.node
+      interval: 1m
+      rules:
+
+        # Pods afetados por condições adversas no nó (NotReady, DiskPressure, MemoryPressure, etc.)
+        #
+        # A query faz join entre kube_pod_info e kube_node_status_condition para identificar
+        # pods que estão rodando em nós com condições problemáticas ativas nos últimos 5 minutos.
+        # Três cenários cobertos por OR:
+        #   1. Condição diferente de Ready está ativa (ex: DiskPressure=true)
+        #   2. Condição Ready está false (nó deliberadamente marcado como não-pronto)
+        #   3. Condição Ready está unknown (nó perdeu contato com o control plane)
+        #
+        # Origem: Grafana folder "Kubernetes - Node"
+        # Nota: keepFiringFor: 2m do Grafana não tem equivalente em PrometheusRule —
+        #       o alerta resolve assim que a condição deixa de ser verdadeira.
+        - alert: KubeNodeConditionAffectedPods
+          expr: |
+            sum by (pod, namespace, node, condition, status, created_by_kind) (
+              kube_pod_info{namespace=~"jorn.*"}
+            )
+            * on (node) group_left(condition, status)
+            max by (node, condition, status) (
+              max_over_time(kube_node_status_condition{condition!="Ready", status="true"}[5m]) > 0
+            )
+            OR
+            sum by (pod, namespace, node, condition, status, created_by_kind) (
+              kube_pod_info{namespace=~"jorn.*"}
+            )
+            * on (node) group_left(condition, status)
+            max by (node, condition, status) (
+              max_over_time(kube_node_status_condition{condition="Ready", status="false"}[5m]) > 0
+            )
+            OR
+            sum by (pod, namespace, node, condition, status, created_by_kind) (
+              kube_pod_info{namespace=~"jorn.*"}
+            )
+            * on (node) group_left(condition, status)
+            max by (node, condition, status) (
+              max_over_time(kube_node_status_condition{condition="Ready", status="unknown"}[5m]) > 0
+            )
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+            component: node
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} no nó {{ $labels.node }} com condição {{ $labels.condition }}={{ $labels.status }}"
+            description: |
+              Pod {{ $labels.namespace }}/{{ $labels.pod }} está rodando em nó
+              com condição adversa {{ $labels.condition }}={{ $labels.status }}
+              detectada nos últimos 5 minutos.
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/KubeNodeConditionAffectedPods"
+
+        # Detecta nós com pods presentes há 5 min mas sem pods agora e ausentes do kube_node_info
+        #
+        # ATENÇÃO: Esta regra estava PAUSADA (isPaused: true) no Grafana — revisar
+        # threshold (> 2) e semântica antes de aplicar ao cluster.
+        # Threshold > 2 no Grafana. noDataState: OK, execErrState: Error no Grafana
+        # (sem equivalente em PrometheusRule).
+        #
+        # Origem: Grafana folder "Kubernetes - Node"
+        - alert: KubeNewNode
+          expr: |
+            (
+              count by (node) (
+                kube_pod_info{namespace=~"jorn.*"} offset 5m
+              )
+            ) unless (
+              count by (node) (
+                kube_pod_info{namespace=~"jorn.*"}
+              )
+            ) unless (
+              kube_node_info
+            ) > 2
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+            component: node
+          annotations:
+            summary: "Nó {{ $labels.node }} com padrão de scheduling alterado"
+            description: |
+              Nó {{ $labels.node }} tinha pods há 5 minutos mas não os tem agora
+              e não consta em kube_node_info. Pode indicar nó efêmero ou eviction em massa.
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/KubeNewNode"
