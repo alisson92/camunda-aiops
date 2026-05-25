@@ -12,7 +12,9 @@ PYTHON := .venv/bin/python
 PYTEST  := .venv/bin/pytest
 RUFF    := .venv/bin/ruff
 
-.PHONY: run test test-integration test-e2e smoke demo lint load help
+.PHONY: run test test-integration test-e2e smoke demo lint \
+        port-forward check-metrics import-dashboard load \
+        cycle-test cycle-test-fast help
 
 # ── Agente ─────────────────────────────────────────────────────────────────────
 
@@ -36,7 +38,7 @@ smoke: ## Envia os 3 alertas de teste para o Teams (critical, warning, info)
 smoke-%: ## Envia um cenário específico: make smoke-critical | smoke-warning | smoke-info | smoke-resolved
 	PYTHONPATH=agent $(PYTHON) tests/test_teams_notifier.py $*
 
-demo: ## Demo completa: injeta os 4 cenários de alerta no agente local (requer make run)
+demo: ## Demo completa: autossuficiente — inicia Ollama + agente, injeta 4 cenários, encerra tudo
 	./scripts/demo.sh
 
 demo-%: ## Demo de um cenário específico: make demo-zeebe | demo-namespace | demo-backpressure | demo-resolved
@@ -74,5 +76,5 @@ cycle-test-fast: ## Ciclo sem load-generator (só fast check — útil quando j�
 # ── Ajuda ──────────────────────────────────────────────────────────────────────
 
 help: ## Lista todos os targets disponíveis
-	@grep -E '^[a-zA-Z_%-]+:.*## ' $(MAKEFILE_LIST) | \
+	@grep -E '^[a-zA-Z0-9_%/-]+:.*## ' $(MAKEFILE_LIST) | \
 	  awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'

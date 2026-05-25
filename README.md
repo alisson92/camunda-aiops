@@ -260,7 +260,7 @@ Cada card inclui: análise do agente (expansível), link para o dashboard, runbo
 
 ```bash
 make run              # inicia o agente na porta 5001
-make test             # roda pytest (75 testes unitários)
+make test             # roda pytest (88 testes unitários + cobertura 100%)
 make smoke            # envia todos os cenários de teste para o Teams
 make smoke-critical   # envia só o critical
 make lint             # valida estilo com ruff
