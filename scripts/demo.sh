@@ -222,11 +222,23 @@ send_scenario() {
         return
     fi
 
+    # Injeta o timestamp atual no payload — os fixtures têm datas estáticas
+    local payload
+    payload=$(python3 -c "
+import json, sys, datetime
+data = json.load(open('${FIXTURES_DIR}/${fixture_file}'))
+now = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+data['startsAt'] = now
+for alert in data.get('alerts', []):
+    alert['startsAt'] = now
+print(json.dumps(data))
+")
+
     local response http_code body
     response=$(curl -s -w "\n__HTTP_STATUS__%{http_code}" \
         -X POST "${WEBHOOK_URL}" \
         -H "Content-Type: application/json" \
-        -d @"${FIXTURES_DIR}/${fixture_file}" \
+        -d "${payload}" \
         --max-time 120)  # 120s: LLM local pode levar 10–30s
 
     http_code=$(echo "${response}" | grep '__HTTP_STATUS__' | sed 's/__HTTP_STATUS__//')
