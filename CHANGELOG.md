@@ -15,6 +15,7 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 - `Makefile` targets `demo` e `demo-%` (demo-zeebe, demo-namespace, demo-backpressure, demo-resolved)
 - `docs/etapa-8-demo-mode.md` — documentação da etapa: problema, solução, decisões técnicas e roteiro de uso
 - `CLAUDE.md` — regra de documentação obrigatória ao concluir etapas; roadmap numerado; roteiro da demo ao time
+- `README.md` — nota explicando a diferença entre `demo.sh` (valida o agente, sem Kind) e `run-cycle-test.sh` (valida a pipeline K8s, requer Kind)
 - `tests/e2e/test_alert_cycle.py` — 3 testes E2E do ciclo completo: webhook → agente → Prometheus real → LLM mock HTTP → Teams mock HTTP
 - `tests/e2e/conftest.py` — fixtures E2E: Prometheus (Testcontainers) + servidor HTTP mock unificado (pytest-httpserver)
 - `tests/integration/test_tools_integration.py` — 7 testes de integração de `tools.py` contra Prometheus real (Testcontainers)
