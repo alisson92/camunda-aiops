@@ -58,10 +58,11 @@ kubectl get secret -n monitoring kube-prometheus-stack-grafana \
 # Iniciar o agente (webhook receiver na porta 5001)
 make run
 
-# Demo ao time: injeta os 4 cenários de alerta no agente local (sem Kind)
-make demo                        # ciclo completo
+# Demo ao time: autossuficiente — inicia Ollama + agente, executa cenários, encerra tudo
+# Pré-requisito único: agent/.env com TEAMS_WEBHOOK_URL
+make demo                        # ciclo completo (4 cenários)
 make demo-zeebe                  # apenas ZeebeMemoryPredictedHigh
-make demo-backpressure           # ZeebeBackpressureGrowing (critical)
+make demo-backpressure           # ZeebeBackpressureGrowing (critical — maior impacto)
 make demo-resolved               # alerta encerrado (lifecycle completo)
 
 # Testes

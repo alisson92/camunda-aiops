@@ -134,12 +134,12 @@ Dashboard: `http://localhost:3000/d/camunda-local-forecasting/`
 
 ## Demo ao time
 
-O script `demo.sh` roda o ciclo completo sem precisar do cluster Kind ou de alertas reais disparando — ideal para apresentações e ensaios:
+O script `demo.sh` é totalmente autossuficiente: inicia o Ollama e o agente automaticamente, executa os cenários e encerra tudo ao final. Não requer o cluster Kind, nem abrir múltiplos terminais.
+
+**Pré-requisito único:** `agent/.env` com `TEAMS_WEBHOOK_URL` configurada.
 
 ```bash
-# Pré-requisitos: make run (agente na porta 5001) + Ollama com qwen2.5:7b
-
-# Ciclo completo: 4 cenários em sequência
+# Ciclo completo: 4 cenários em sequência — um único comando
 make demo
 
 # Um cenário específico

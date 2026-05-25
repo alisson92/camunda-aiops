@@ -7,20 +7,25 @@ O ciclo completo do agente AIOps funciona, mas a forma anterior de demonstrá-lo
 - Dependia do cluster Kind estar rodando
 - Dependia de alertas reais disparando no momento certo
 - Dependia do `load-generator.sh` gerar carga suficiente
+- Exigia abrir múltiplos terminais (`make run` em um, demo em outro)
 - Em máquinas sem Kind ou em apresentações remotas: ciclo quebrava
 
 Para uma demo ao time, previsibilidade é essencial. Qualquer falha de infraestrutura no momento da apresentação destrói a percepção do projeto.
 
 ## Solução
 
-Script `scripts/demo.sh` que injeta payloads reais do Alertmanager diretamente no webhook local, simulando exatamente o que o Alertmanager enviaria em produção — sem precisar do Kind.
+Script `scripts/demo.sh` totalmente autossuficiente:
 
-**Pré-requisitos mínimos para a demo:**
-1. `make run` — agente rodando na porta 5001
-2. Ollama com `qwen2.5:7b` — análise real pelo LLM local
-3. `agent/.env` com `TEAMS_WEBHOOK_URL` — para os cards chegarem no Teams
+1. Verifica pré-requisitos (venv, `.env`)
+2. Inicia o Ollama automaticamente se não estiver rodando
+3. Verifica/baixa o modelo LLM se ausente
+4. Inicia o agente em background se não estiver rodando
+5. Executa os cenários de alerta em sequência
+6. Encerra tudo via `trap cleanup EXIT INT TERM`
 
-Sem Kubernetes. Sem Prometheus. Sem cluster.
+**Pré-requisito único:** `agent/.env` com `TEAMS_WEBHOOK_URL` configurada.
+
+Sem Kubernetes. Sem Prometheus. Sem segundo terminal.
 
 ## Implementação
 
@@ -63,17 +68,13 @@ make demo-resolved       # apenas ZeebeMemoryPredictedHigh (resolved)
 ## Como usar na demo ao time
 
 ```bash
-# Terminal 1 — iniciar o agente
-make run
+# Um único comando — o script cuida de tudo
+make demo
 
-# Terminal 2 — rodar a demo
-make demo                # ciclo completo: 4 alertas em sequência
-# ou por cenário:
-make demo-backpressure   # começa pelo critical para impacto máximo
-```
+# Por cenário específico (critical primeiro para impacto máximo)
+make demo-backpressure
 
-Para ensaiar sem enviar nada:
-```bash
+# Ensaiar sem enviar nada (verifica pré-requisitos e mostra o que seria feito)
 ./scripts/demo.sh --dry-run
 ```
 

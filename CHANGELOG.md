@@ -9,7 +9,7 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- `scripts/demo.sh` — modo demo roteirizado: injeta os 4 cenários de alerta no webhook local sem precisar do Kind ou de alertas reais; suporta `--scenario`, `--dry-run`, `--list`, `--delay`, `--webhook-url`
+- `scripts/demo.sh` — modo demo totalmente autossuficiente: inicia Ollama e o agente automaticamente se necessário, injeta os 4 cenários, encerra tudo via `trap`; suporta `--scenario`, `--dry-run`, `--list`, `--delay`, `--webhook-url`
 - `tests/fixtures/zeebe-backpressure-alert.json` — payload `ZeebeBackpressureGrowing` (critical) para ciclo de demo
 - `tests/fixtures/zeebe-resolved.json` — payload `ZeebeMemoryPredictedHigh` (resolved) para demonstrar lifecycle completo
 - `Makefile` targets `demo` e `demo-%` (demo-zeebe, demo-namespace, demo-backpressure, demo-resolved)
