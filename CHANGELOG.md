@@ -8,6 +8,14 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added (runbook_url production-ready — endpoint by-alert)
+- `GET /runbook/by-alert/{alert_name}` — endpoint estático por alertname que sempre serve o runbook mais recente; permite que PrometheusRules usem uma URL fixa sem depender do ID dinâmico de cada ocorrência
+- `_latest_runbook_by_name` dict em `webhook_receiver.py` — índice `alertname → alert_id` mantido em sincronia a cada novo runbook gerado e recarregado da KB no startup
+
+### Changed (runbook_url production-ready)
+- `alerting/camunda-forecasting-rules.yaml`, `camunda-latency-rules.yaml`, `camunda-storage-rules.yaml`: todos os `runbook_url` migrados de URLs GitHub externas para `http://172.18.0.1:5001/runbook/by-alert/{AlertName}` — sem dependência de URLs externas (compliance/segurança)
+- `README.md`: contagem de testes atualizada (213 → 218)
+
 ### Added (Revisão F — Alerting strategy e cobertura de PrometheusRules)
 - `alerting/camunda-latency-rules.yaml` — novo PrometheusRule: `ZeebeGatewayLatencyHigh` (histogram_quantile p99 > 2s, for 5m, severity warning) — cobre o único ponto de entrada gRPC/REST sem alerta
 - `alerting/camunda-storage-rules.yaml` — novo PrometheusRule: `ZeebePVCUsagePredictedFull` (predict_linear sobre kubelet_volume_stats, horizonte 1h, for 10m, severity critical) — cobre disco RocksDB que causa parada imediata de processamento BPMN se cheio

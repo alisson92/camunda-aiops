@@ -51,4 +51,4 @@ spec:
               Latência p99 do Gateway: {{ $value | humanizeDuration }}.
               Requests lentos no Gateway impactam workers, Operate e Tasklist.
               Investigue: backpressure do broker, RocksDB, CPU throttling do pod.
-            runbook_url: "https://github.com/alisson92/camunda-aiops/blob/main/docs/etapa-1-prometheus-rules.md"
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/ZeebeGatewayLatencyHigh"

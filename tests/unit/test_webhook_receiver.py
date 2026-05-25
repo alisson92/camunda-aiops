@@ -352,6 +352,65 @@ class TestRunbookEndpoint:
 
 
 # ---------------------------------------------------------------------------
+# /runbook/by-alert/{alert_name}
+# ---------------------------------------------------------------------------
+
+
+class TestRunbookByAlertEndpoint:
+    _FIRING_PAYLOAD = {
+        "alerts": [
+            {
+                "status": "firing",
+                "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical"},
+                "annotations": {},
+                "startsAt": "2026-05-24T10:00:00Z",
+                "endsAt": "0001-01-01T00:00:00Z",
+            }
+        ]
+    }
+
+    def test_returns_200_after_webhook(self, client):
+        tc, *_ = client
+        tc.post("/webhook", json=self._FIRING_PAYLOAD)
+        resp = tc.get("/runbook/by-alert/ZeebeMemoryPredictedHigh")
+        assert resp.status_code == 200
+
+    def test_response_is_html(self, client):
+        tc, *_ = client
+        tc.post("/webhook", json=self._FIRING_PAYLOAD)
+        resp = tc.get("/runbook/by-alert/ZeebeMemoryPredictedHigh")
+        assert "text/html" in resp.headers["content-type"]
+
+    def test_html_contains_alert_name(self, client):
+        tc, *_ = client
+        tc.post("/webhook", json=self._FIRING_PAYLOAD)
+        resp = tc.get("/runbook/by-alert/ZeebeMemoryPredictedHigh")
+        assert "ZeebeMemoryPredictedHigh" in resp.text
+
+    def test_unknown_alert_name_returns_404(self, client):
+        tc, *_ = client
+        resp = tc.get("/runbook/by-alert/AlertInexistente")
+        assert resp.status_code == 404
+
+    def test_serves_pre_existing_runbook_by_name(self):
+        """Simula runbook recarregado da KB — acessível via alertname sem /webhook prévio."""
+        from webhook_receiver import _latest_runbook_by_name, _runbooks, app
+
+        pre_id = "by-name-test-00000000"
+        alert_name = "TestAlertByName"
+        _runbooks[pre_id] = (alert_name, "# Runbook: TestAlertByName\n\nconteúdo")
+        _latest_runbook_by_name[alert_name] = pre_id
+        try:
+            tc = TestClient(app)
+            resp = tc.get(f"/runbook/by-alert/{alert_name}")
+            assert resp.status_code == 200
+            assert alert_name in resp.text
+        finally:
+            _runbooks.pop(pre_id, None)
+            _latest_runbook_by_name.pop(alert_name, None)
+
+
+# ---------------------------------------------------------------------------
 # /silence
 # ---------------------------------------------------------------------------
 

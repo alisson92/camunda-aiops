@@ -32,17 +32,22 @@ from teams_notifier import send_alert_to_teams
 # Armazena runbooks gerados em memória: alert_id → (alert_name, runbook_markdown)
 _runbooks: dict[str, tuple[str, str]] = {}
 
+# Índice por nome de alerta → alert_id mais recente.
+# Permite que runbook_url nas PrometheusRules use uma URL estática por alertname
+# em vez de um ID dinâmico por ocorrência: GET /runbook/by-alert/{alert_name}
+_latest_runbook_by_name: dict[str, str] = {}
+
 setup_logging()
 
 # Base de conhecimento — carregada uma vez na inicialização do processo
 _kb = KnowledgeBase()
 
-# Repovoar store de runbooks a partir da KB (runbooks persistidos em ciclos anteriores)
-# Garante que /runbook/{id} funcione mesmo após restart do agente
-_runbooks.update({
-    doc_id: (doc.alert_name, doc.content)
-    for doc_id, doc in _kb.get_runbooks().items()
-})
+# Repovoar stores de runbooks a partir da KB (runbooks persistidos em ciclos anteriores)
+# Garante que /runbook/{id} e /runbook/by-alert/{name} funcionem após restart do agente
+for _doc_id, _doc in _kb.get_runbooks().items():
+    _runbooks[_doc_id] = (_doc.alert_name, _doc.content)
+    if _doc.alert_name:
+        _latest_runbook_by_name[_doc.alert_name] = _doc_id
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +132,8 @@ async def alertmanager_webhook(request: Request):
                 starts_at=starts_at,
             )
             _runbooks[runbook_id] = (alert_name, runbook_md)
-            logger.info("[%s] Runbook armazenado: id=%s", alert_id, runbook_id)
+            _latest_runbook_by_name[alert_name] = runbook_id
+            logger.info("[%s] Runbook armazenado: id=%s alertname=%s", alert_id, runbook_id, alert_name)
             _kb.add_document(
                 doc_id=runbook_id,
                 title=f"Runbook: {alert_name}",
@@ -171,6 +177,25 @@ async def get_runbook(alert_id: str):
         raise HTTPException(status_code=404, detail=f"Runbook '{alert_id}' não encontrado.")
     alert_name, runbook_md = _runbooks[alert_id]
     return HTMLResponse(render_runbook_html(alert_name, runbook_md))
+
+
+@app.get("/runbook/by-alert/{alert_name}", response_class=HTMLResponse)
+async def get_runbook_by_alert(alert_name: str):
+    """
+    Serve o runbook mais recente para um alertname.
+
+    Usado como runbook_url estático nas PrometheusRules — a URL não muda entre ocorrências
+    do mesmo alerta, mas sempre retorna o conteúdo do runbook mais recentemente gerado.
+    Formato: GET /runbook/by-alert/ZeebeMemoryPredictedHigh
+    """
+    alert_id = _latest_runbook_by_name.get(alert_name)
+    if not alert_id or alert_id not in _runbooks:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Nenhum runbook encontrado para '{alert_name}'. O agente ainda não analisou este alerta.",
+        )
+    name, runbook_md = _runbooks[alert_id]
+    return HTMLResponse(render_runbook_html(name, runbook_md))
 
 
 @app.get("/silence", response_class=HTMLResponse)

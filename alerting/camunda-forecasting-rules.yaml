@@ -55,7 +55,8 @@ spec:
               A projeção linear da G1 Old Gen indica que {{ $labels.pod }} atingirá
               {{ $value | humanizePercentage }} de uso de heap nos próximos 15 minutos.
               Max configurado (Xmx): 750MB.
-            runbook_url: "https://github.com/alisson92/camunda-aiops/blob/main/data/knowledge/examples/zeebe-memory-predicted-high.md"
+            # Em produção: substituir pelo IP/hostname do agente AIOps no ambiente
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/ZeebeMemoryPredictedHigh"
 
         # Alerta 2: aceleração positiva de backpressure do Zeebe
         #
@@ -79,7 +80,7 @@ spec:
               Derivada do backpressure: {{ $value | humanize }} req/s.
               O sistema está acumulando requests in-flight mais rápido do que processa.
               Verifique latência do Zeebe e RocksDB.
-            runbook_url: "https://github.com/alisson92/camunda-aiops/blob/main/data/knowledge/examples/zeebe-backpressure-growing.md"
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/ZeebeBackpressureGrowing"
 
     - name: camunda.forecasting.capacity
       interval: 1m
@@ -116,4 +117,4 @@ spec:
             description: |
               Projeção: {{ $value | humanize1024 }}B em 30 minutos.
               Inspecione consumo por pod: kubectl top pods -n camunda --sort-by=memory
-            runbook_url: "https://github.com/alisson92/camunda-aiops/blob/main/docs/etapa-1-prometheus-rules.md"
+            runbook_url: "http://172.18.0.1:5001/runbook/by-alert/CamundaNamespaceMemoryPressure"

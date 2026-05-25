@@ -55,9 +55,9 @@ camunda-aiops/
 │   └── import-dashboard.sh       # importa o dashboard via API do Grafana
 ├── tests/
 │   ├── fixtures/                 # payloads de alerta para testes
-│   ├── unit/                     # 213 testes unitários (sem infraestrutura)
+│   ├── unit/                     # 218 testes unitários (sem infraestrutura)
 │   │   ├── test_config.py        # 12 testes — carregamento do .env + _BRTFormatter + ALERT_FILTER_KEYWORDS
-│   │   ├── test_webhook_receiver.py  # 31 testes — endpoints FastAPI (incl. /runbook, /health enriquecido)
+│   │   ├── test_webhook_receiver.py  # 36 testes — endpoints FastAPI (incl. /runbook, /runbook/by-alert, /health)
 │   │   ├── test_reactive_agent.py    # 17 testes — loop agentic, alert_id, LLM_ROUNDS_USED
 │   │   ├── test_runbook_generator.py # 42 testes — geração, fallback, Markdown→HTML
 │   │   ├── test_tools.py             # 22 testes — queries Prometheus + _resolve_ts
