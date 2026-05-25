@@ -292,6 +292,24 @@ class TestSendAlertToTeams:
         titles = [a["title"] for a in actions]
         assert any("Runbook" in t for t in titles)
 
+    def test_runbook_button_absent_for_resolved_even_with_url(self):
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status.return_value = None
+        annotations = {**self._BASE_ANNOTATIONS, "runbook_url": "https://github.com/org/runbook.md"}
+
+        with (
+            patch("teams_notifier.TEAMS_WEBHOOK_URL", "https://teams.example/webhook"),
+            patch("httpx.post", return_value=mock_resp) as mock_post,
+        ):
+            send_alert_to_teams(
+                "ZeebeMemoryPredictedHigh", self._BASE_LABELS, annotations,
+                "resolved", "", "2026-05-24T10:00:00Z", "2026-05-24T10:45:00Z",
+            )
+
+        actions = mock_post.call_args[1]["json"]["attachments"][0]["content"]["actions"]
+        titles = [a["title"] for a in actions]
+        assert not any("Runbook" in t for t in titles)
+
     def test_analysis_show_card_present_when_analysis_given(self):
         mock_resp = MagicMock()
         mock_resp.raise_for_status.return_value = None

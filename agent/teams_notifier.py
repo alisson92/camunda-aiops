@@ -294,7 +294,7 @@ def send_alert_to_teams(
         "url": f"{GRAFANA_URL}/d/{GRAFANA_DASHBOARD_UID}",
     })
 
-    if runbook_url:
+    if runbook_url and not is_resolved:
         actions.append({
             "type": "Action.OpenUrl",
             "title": "📖 Runbook",

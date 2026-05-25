@@ -206,6 +206,36 @@ ensure_agent() {
     exit 1
 }
 
+# ── Port-forwards opcionais (só quando Kind está ativo) ──────────────────────
+
+ensure_port_forwards() {
+    local context
+    context=$(kubectl config current-context 2>/dev/null || echo "")
+
+    if [[ "$context" != kind-* ]]; then
+        log_warn "Cluster Kind não detectado — links de Dashboard e Silence não funcionarão."
+        log_info "Para ativá-los, inicie o Kind e execute: make port-forward"
+        return
+    fi
+
+    log_step "Kind detectado (${context}) — iniciando port-forwards"
+
+    # Grafana
+    kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana \
+        3000:80 >> "${LOG_DIR}/pf-grafana.log" 2>&1 &
+    BG_PIDS+=("$!")
+    log_ok "Grafana:      http://localhost:3000"
+
+    # Alertmanager
+    kubectl port-forward -n monitoring svc/kube-prometheus-stack-alertmanager \
+        9093:9093 >> "${LOG_DIR}/pf-alertmanager.log" 2>&1 &
+    BG_PIDS+=("$!")
+    log_ok "Alertmanager: http://localhost:9093"
+
+    # Aguarda os tunnels estabelecerem antes de enviar os cenários
+    sleep 2
+}
+
 # ── Envio de cenário ──────────────────────────────────────────────────────────
 
 send_scenario() {
@@ -337,6 +367,9 @@ if [[ "${DRY_RUN}" != "true" ]]; then
 
     log_step "Agente AIOps (porta ${AGENT_PORT})"
     ensure_agent
+
+    log_step "Port-forwards (Grafana + Alertmanager)"
+    ensure_port_forwards
 fi
 
 log_step "Executando cenários"
