@@ -411,3 +411,10 @@ log_banner "Demo concluída"
 echo -e "  ${GREEN}Todos os cenários foram processados.${RESET}"
 echo -e "  Verifique o Microsoft Teams para os cards gerados."
 echo ""
+
+if [[ "${DRY_RUN}" != "true" ]]; then
+    echo -e "  ${YELLOW}Agente e port-forwards ainda estão ativos.${RESET}"
+    echo -e "  Interaja com os cards no Teams e pressione ${BOLD}ENTER${RESET} quando terminar."
+    echo ""
+    read -r
+fi
