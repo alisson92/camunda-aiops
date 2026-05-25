@@ -8,6 +8,13 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added (Revisão D — CONTRIBUTING.md e padrões do projeto)
+- `CONTRIBUTING.md` — guia centralizado de padrões: fluxo de contribuição, Conventional Commits, regras de código (ruff), requisitos de teste (100% cobertura), checklist para nova etapa, ADR format, tabela do CI e o que nunca commitar
+- `docs/revisao-D-contributing.md` — laudo completo desta revisão
+
+### Changed (Revisão D)
+- `docs/README.md` — entrada da Revisão D adicionada à tabela de revisões de qualidade
+
 ### Added (Revisão C — Organização e estrutura do repositório)
 - `docs/README.md` — índice de navegação da pasta docs/ (etapas, revisões, fixes, ADR log)
 - `data/knowledge/examples/README.md` — instruções para adicionar exemplos few-shot

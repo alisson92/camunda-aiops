@@ -34,6 +34,7 @@ Revisões periódicas aplicadas ao projeto antes de apresentação ao time.
 | [revisao-A-limpeza-repositorio.md](revisao-A-limpeza-repositorio.md) | Limpeza de artefatos, reorganização de arquivos, docs faltantes |
 | [revisao-B-hardcoded-configurabilidade.md](revisao-B-hardcoded-configurabilidade.md) | Auditoria e correção de valores hardcoded — `ALERT_FILTER_KEYWORDS` |
 | [revisao-C-organizacao-estrutura.md](revisao-C-organizacao-estrutura.md) | Estrutura do repositório, CI, pyproject.toml, índices de navegação |
+| [revisao-D-contributing.md](revisao-D-contributing.md) | Criação do CONTRIBUTING.md — padrões, fluxo de contribuição, convenções |
 
 ---
 
