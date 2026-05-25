@@ -14,6 +14,7 @@ from teams_notifier import (
     _build_analysis_blocks,
     _clean_analysis,
     _format_alert_time,
+    _format_duration,
     _truncate,
     send_alert_to_teams,
 )
@@ -22,6 +23,28 @@ from teams_notifier import (
 # ---------------------------------------------------------------------------
 # _format_alert_time
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# _format_duration
+# ---------------------------------------------------------------------------
+
+
+class TestFormatDuration:
+    def test_minutes_only(self):
+        assert _format_duration("2026-05-25T10:00:00Z", "2026-05-25T10:45:00Z") == "45 min"
+
+    def test_exact_one_hour(self):
+        assert _format_duration("2026-05-25T10:00:00Z", "2026-05-25T11:00:00Z") == "1h"
+
+    def test_hours_and_minutes(self):
+        assert _format_duration("2026-05-25T10:00:00Z", "2026-05-25T11:30:00Z") == "1h 30min"
+
+    def test_zero_minutes_returns_zero(self):
+        assert _format_duration("2026-05-25T10:00:00Z", "2026-05-25T10:00:00Z") == "0 min"
+
+    def test_invalid_timestamps_return_empty(self):
+        assert _format_duration("invalid", "also-invalid") == ""
 
 
 class TestFormatAlertTime:

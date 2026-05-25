@@ -223,8 +223,9 @@ send_scenario() {
     fi
 
     # Injeta timestamps atuais no payload — os fixtures têm datas estáticas
-    # Para firing: startsAt = agora
-    # Para resolved: startsAt = agora - 45min, endsAt = agora (horário da resolução)
+    # Para firing:  startsAt = agora,        endsAt = sentinel (alerta ativo)
+    # Para resolved: startsAt = agora (disparo), endsAt = agora + 45min (resolução)
+    # O card calculará automaticamente a duração a partir de endsAt - startsAt
     local payload
     payload=$(python3 -c "
 import json, datetime
@@ -232,8 +233,8 @@ data = json.load(open('${FIXTURES_DIR}/${fixture_file}'))
 now = datetime.datetime.now(datetime.timezone.utc)
 fmt = '%Y-%m-%dT%H:%M:%SZ'
 is_resolved = data.get('status') == 'resolved'
-started = (now - datetime.timedelta(minutes=45)).strftime(fmt) if is_resolved else now.strftime(fmt)
-ended   = now.strftime(fmt) if is_resolved else '0001-01-01T00:00:00Z'
+started = now.strftime(fmt)
+ended   = (now + datetime.timedelta(minutes=45)).strftime(fmt) if is_resolved else '0001-01-01T00:00:00Z'
 data['startsAt'] = started
 data['endsAt']   = ended
 for alert in data.get('alerts', []):

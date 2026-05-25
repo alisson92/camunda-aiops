@@ -72,6 +72,20 @@ def _format_alert_time(iso_str: str) -> str:
         return iso_str
 
 
+def _format_duration(starts_at: str, ends_at: str) -> str:
+    """Calcula e formata a duração entre dois timestamps ISO 8601."""
+    try:
+        start = datetime.fromisoformat(starts_at.replace("Z", "+00:00"))
+        end   = datetime.fromisoformat(ends_at.replace("Z", "+00:00"))
+        total_minutes = max(0, int((end - start).total_seconds() // 60))
+        if total_minutes < 60:
+            return f"{total_minutes} min"
+        hours, minutes = divmod(total_minutes, 60)
+        return f"{hours}h {minutes}min" if minutes else f"{hours}h"
+    except Exception:
+        return ""
+
+
 # ---------------------------------------------------------------------------
 # Processamento do texto de análise (bloco AIOps)
 # ---------------------------------------------------------------------------
@@ -219,6 +233,9 @@ def send_alert_to_teams(
     ]
     if is_resolved and resolved_str:
         meta_lines.append(f"**Resolved:** {resolved_str}")
+        duration_str = _format_duration(starts_at, ends_at)
+        if duration_str:
+            meta_lines.append(f"**Duração:** {duration_str}")
 
     body.append({
         "type": "TextBlock",
