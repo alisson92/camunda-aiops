@@ -13,6 +13,8 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 - `docs/etapa-9-system-prompt-v2.md` — documentação da etapa: problema, decisões, comparação v1 vs v2, rollback
 
 ### Changed
+- `agent/config.py` — `_BRTFormatter` força logs em horário de Brasília (UTC-3); `setup_logging` usa handler com formatter explícito em vez de `basicConfig` com `format=`
+- `tests/unit/test_config.py` — 2 testes para `_BRTFormatter`: offset UTC-3 e formato padrão `YYYY-MM-DD HH:MM:SS`
 - `agent/prompts.py` — aponta para `system-prompt-v2.md` (era v1)
 - `prompts/GUIDELINES.md` — atualiza comando de teste para `make demo-backpressure` e `make demo-resolved`; registra v2 no histórico de versões
 - `scripts/demo.sh` — modo demo totalmente autossuficiente: inicia Ollama e o agente automaticamente se necessário, injeta os 4 cenários, encerra tudo via `trap`; suporta `--scenario`, `--dry-run`, `--list`, `--delay`, `--webhook-url`

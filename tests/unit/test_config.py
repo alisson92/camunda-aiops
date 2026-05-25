@@ -5,12 +5,31 @@ Foca na lógica de carregamento do .env, que não é exercida no CI
 porque o arquivo agent/.env está no .gitignore.
 """
 
+import logging
 import os
+import re
 from pathlib import Path
 
 import pytest
 
-from config import _load_env_file
+from config import _BRTFormatter, _load_env_file
+
+
+class TestBRTFormatter:
+    def _make_record(self) -> logging.LogRecord:
+        return logging.LogRecord("test", logging.INFO, "", 0, "msg", (), None)
+
+    def test_formatTime_offset_is_brt(self):
+        """Confirma que o fuso aplicado é UTC-3 (Brasília)."""
+        formatter = _BRTFormatter()
+        result = formatter.formatTime(self._make_record(), datefmt="%z")
+        assert result == "-0300"
+
+    def test_formatTime_default_format_matches_pattern(self):
+        """Sem datefmt, retorna YYYY-MM-DD HH:MM:SS."""
+        formatter = _BRTFormatter()
+        result = formatter.formatTime(self._make_record())
+        assert re.match(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$", result)
 
 
 class TestLoadEnvFile:

@@ -10,6 +10,7 @@ Twelve-Factor App — Factor III (Config):
 
 import logging
 import os
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 def _load_env_file(env_path: Path) -> None:
@@ -49,10 +50,23 @@ AGENT_PUBLIC_URL: str = os.environ.get("AGENT_PUBLIC_URL", "http://localhost:500
 LOG_LEVEL: str = os.environ.get("LOG_LEVEL", "INFO")
 
 
+class _BRTFormatter(logging.Formatter):
+    """Formata timestamps dos logs no fuso de Brasília (UTC-3, sem horário de verão)."""
+    _tz = timezone(timedelta(hours=-3))
+
+    def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:
+        ct = datetime.fromtimestamp(record.created, tz=self._tz)
+        return ct.strftime(datefmt or "%Y-%m-%d %H:%M:%S")
+
+
 def setup_logging() -> None:
     """Configura o logging da aplicação. Chamar apenas nos entry points."""
+    handler = logging.StreamHandler()
+    handler.setFormatter(_BRTFormatter(
+        fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    ))
     logging.basicConfig(
         level=getattr(logging, LOG_LEVEL.upper(), logging.INFO),
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
+        handlers=[handler],
     )
