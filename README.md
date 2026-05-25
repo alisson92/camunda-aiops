@@ -135,6 +135,26 @@ Dashboard: `http://localhost:3000/d/camunda-local-forecasting/`
 
 ---
 
+## Guia de uso — quando usar cada comando
+
+Esta tabela é o ponto de entrada para qualquer dúvida sobre qual comando executar:
+
+| Comando | Quando usar | Requer Kind? | Requer Ollama? | O que valida |
+|---|---|---|---|---|
+| `make smoke` | Verificar se o card Teams está chegando e bem formatado | Não | Não | Formatação do card, webhook Teams |
+| `make demo` | Apresentar ao time, ensaiar o pitch, demonstrar o ciclo real | Não | Sim (sobe automático) | Agente + LLM + runbook + Teams |
+| `make cycle-test` | Validar que o cluster Kubernetes está configurado corretamente | Sim | Sim | PrometheusRule → Alertmanager → webhook → agente |
+| `make test` | Antes de um commit, verificar que nada quebrou | Não | Não | 159 testes unitários, cobertura 100% |
+| `make test-integration` | Validar queries Prometheus após alterar `tools.py` | Docker | Não | `tools.py` contra Prometheus real (Testcontainers) |
+| `make run` | Desenvolver localmente com recarregamento automático | Não | Sim | — (inicia o agente em modo dev) |
+
+**Regra prática:**
+- Desenvolvendo → `make test` + `make smoke`
+- Apresentando ao time → `make demo`
+- Validando infra Kubernetes → `make cycle-test`
+
+---
+
 ## Demo ao time
 
 O script `demo.sh` é totalmente autossuficiente: inicia o Ollama e o agente automaticamente, executa os cenários e encerra tudo ao final. Não requer o cluster Kind, nem abrir múltiplos terminais.
@@ -158,11 +178,6 @@ make demo-resolved       # resolved — lifecycle completo
 ```
 
 Cada cenário envia o payload ao webhook, aguarda o LLM processar e exibe os primeiros caracteres da análise no terminal. O card completo chega no Microsoft Teams.
-
-> **`demo.sh` vs `run-cycle-test.sh`:** os dois scripts têm propósitos complementares, não redundantes.
-> `demo.sh` valida **o agente** — dado um alerta qualquer, o LLM analisa e o Teams recebe o card. Não precisa de Kind.
-> `run-cycle-test.sh` valida **a pipeline de infraestrutura** — PrometheusRule dispara, Alertmanager roteia, webhook recebe. Requer Kind ativo.
-> Use `demo.sh` para apresentações e ensaios; use `run-cycle-test.sh` para validar que o cluster está configurado corretamente.
 
 ---
 
@@ -208,7 +223,7 @@ make smoke
 
 | Suíte | Testes | Infraestrutura | Cobertura |
 |---|---|---|---|
-| Unitários | 88 | Nenhuma | 100% (`fail_under = 100`) |
+| Unitários | 159 | Nenhuma | 100% (`fail_under = 100`) |
 | Integração | 7 | Docker — Prometheus real (Testcontainers) | — |
 | E2E | 3 | Docker — Prometheus real + LLM/Teams mock HTTP | — |
 
@@ -263,7 +278,7 @@ Cada card inclui: análise do agente (expansível), link para o dashboard, runbo
 
 ```bash
 make run              # inicia o agente na porta 5001
-make test             # roda pytest (88 testes unitários + cobertura 100%)
+make test             # roda pytest (159 testes unitários + cobertura 100%)
 make smoke            # envia todos os cenários de teste para o Teams
 make smoke-critical   # envia só o critical
 make lint             # valida estilo com ruff
@@ -315,7 +330,7 @@ Trocar de LLM (Ollama → GPT-4 → Claude API) exige mudar apenas duas variáve
 
 | Job | O que valida | Depende de |
 |---|---|---|
-| `python` | 88 testes unitários, cobertura 100%, `ruff` | — |
+| `python` | 159 testes unitários, cobertura 100%, `ruff` | — |
 | `yaml-lint` | `yamllint` em manifestos Kubernetes | — |
 | `shell-lint` | ShellCheck `severity=warning` em scripts | — |
 | `integration` | 7 testes — `tools.py` contra Prometheus real (Testcontainers) | `python` |
