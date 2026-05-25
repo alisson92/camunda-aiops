@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 
 from openai import OpenAI
 
-from config import OLLAMA_BASE_URL, OLLAMA_MODEL
+from config import GRAFANA_URL, OLLAMA_BASE_URL, OLLAMA_MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +119,7 @@ def _fallback_runbook(
 ## Verificação de Resolução
 
 - `kubectl get pods -n camunda`
-- Verifique métricas no Grafana: `http://localhost:3000`
+- Verifique métricas no Grafana: `{GRAFANA_URL}`
 """
 
 

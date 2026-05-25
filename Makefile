@@ -19,7 +19,9 @@ RUFF    := .venv/bin/ruff
 # ── Agente ─────────────────────────────────────────────────────────────────────
 
 run: ## Inicia o agente (webhook receiver) em modo desenvolvimento
-	cd agent && ../.venv/bin/uvicorn webhook_receiver:app --host 0.0.0.0 --port 5001 --reload
+	cd agent && ../.venv/bin/uvicorn webhook_receiver:app --host 0.0.0.0 \
+		--port $$(python3 -c "import urllib.parse,os; u=os.environ.get('AGENT_PUBLIC_URL','http://localhost:5001'); print(urllib.parse.urlparse(u).port or 5001)") \
+		--reload
 
 # ── Testes ─────────────────────────────────────────────────────────────────────
 

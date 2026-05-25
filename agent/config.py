@@ -46,6 +46,12 @@ GRAFANA_DASHBOARD_UID: str = os.environ.get("GRAFANA_DASHBOARD_UID", "camunda-lo
 # --- Agente ---
 AGENT_PUBLIC_URL: str = os.environ.get("AGENT_PUBLIC_URL", "http://localhost:5001").rstrip("/")
 
+# Palavras-chave que determinam quais alertas o agente processa.
+# Alertas cujo alertname não contiver nenhuma dessas palavras são ignorados.
+# Separadas por vírgula: ALERT_FILTER_KEYWORDS=Zeebe,Camunda,Operate
+_raw_keywords = os.environ.get("ALERT_FILTER_KEYWORDS", "Zeebe,Camunda")
+ALERT_FILTER_KEYWORDS: list[str] = [kw.strip() for kw in _raw_keywords.split(",") if kw.strip()]
+
 # --- Logging ---
 LOG_LEVEL: str = os.environ.get("LOG_LEVEL", "INFO")
 

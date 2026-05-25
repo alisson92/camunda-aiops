@@ -8,6 +8,18 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added (Revisão B — Hardcoded e configurabilidade)
+- `config.py`: `ALERT_FILTER_KEYWORDS` — nova variável de ambiente (padrão `Zeebe,Camunda`); define quais alertas o agente processa sem exigir edição de código
+- `.env.example`: entrada `ALERT_FILTER_KEYWORDS` com documentação e exemplo de uso
+- `docs/revisao-B-hardcoded-configurabilidade.md` — laudo completo com classificação de todos os valores hardcoded e justificativa de cada decisão
+- `tests/unit/test_config.py`: 4 novos testes para `ALERT_FILTER_KEYWORDS` (default, custom, espaços, vazio)
+
+### Changed (Revisão B)
+- `agent/webhook_receiver.py` — filtro de alertas usa `ALERT_FILTER_KEYWORDS` (era `("Zeebe", "Camunda")` hardcoded)
+- `agent/tools.py` — filtro de `get_alert_rules` usa `ALERT_FILTER_KEYWORDS` (era hardcoded)
+- `agent/runbook_generator.py` — fallback de runbook usa `GRAFANA_URL` de `config.py` (era `http://localhost:3000` hardcoded)
+- `Makefile`: target `run` deriva a porta de `AGENT_PUBLIC_URL` (era porta `5001` hardcoded)
+
 ### Added (Revisão A — Limpeza e organização do repositório)
 - `docs/revisao-A-limpeza-repositorio.md` — documento desta revisão: o que foi feito e por quê
 - `docs/etapa-6-ciclo-completo.md` — documentação da Etapa 6 (`run-cycle-test.sh`), faltava desde a implementação

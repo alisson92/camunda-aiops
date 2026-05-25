@@ -12,6 +12,9 @@ from pathlib import Path
 
 import pytest
 
+import importlib
+
+import config
 from config import _BRTFormatter, _load_env_file
 
 
@@ -77,3 +80,26 @@ class TestLoadEnvFile:
         _load_env_file(env_file)
 
         assert os.environ.get("TEST_URL_KEY") == "http://host:8080/path?a=1"
+
+
+class TestAlertFilterKeywords:
+    def test_default_contains_zeebe_and_camunda(self, monkeypatch):
+        monkeypatch.delenv("ALERT_FILTER_KEYWORDS", raising=False)
+        importlib.reload(config)
+        assert "Zeebe" in config.ALERT_FILTER_KEYWORDS
+        assert "Camunda" in config.ALERT_FILTER_KEYWORDS
+
+    def test_custom_keywords_parsed_correctly(self, monkeypatch):
+        monkeypatch.setenv("ALERT_FILTER_KEYWORDS", "Operate,Identity,Zeebe")
+        importlib.reload(config)
+        assert config.ALERT_FILTER_KEYWORDS == ["Operate", "Identity", "Zeebe"]
+
+    def test_keywords_with_spaces_are_stripped(self, monkeypatch):
+        monkeypatch.setenv("ALERT_FILTER_KEYWORDS", " Zeebe , Camunda ")
+        importlib.reload(config)
+        assert config.ALERT_FILTER_KEYWORDS == ["Zeebe", "Camunda"]
+
+    def test_empty_value_produces_empty_list(self, monkeypatch):
+        monkeypatch.setenv("ALERT_FILTER_KEYWORDS", "")
+        importlib.reload(config)
+        assert config.ALERT_FILTER_KEYWORDS == []

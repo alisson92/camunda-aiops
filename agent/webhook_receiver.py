@@ -16,7 +16,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
-from config import AGENT_PUBLIC_URL, ALERTMANAGER_URL, setup_logging
+from config import AGENT_PUBLIC_URL, ALERT_FILTER_KEYWORDS, ALERTMANAGER_URL, setup_logging
 from metrics import (
     ALERTS_FILTERED,
     ALERTS_PROCESSED,
@@ -82,7 +82,7 @@ async def alertmanager_webhook(request: Request):
 
         logger.info("Alerta recebido: %s | status: %s | labels: %s", alert_name, status, json.dumps(labels))
 
-        if not any(kw in alert_name for kw in ("Zeebe", "Camunda")):
+        if not any(kw in alert_name for kw in ALERT_FILTER_KEYWORDS):
             logger.debug("Alerta %s ignorado (fora do escopo Camunda)", alert_name)
             ALERTS_FILTERED.inc()
             continue

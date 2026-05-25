@@ -8,7 +8,7 @@ import time as _time
 
 import httpx
 
-from config import PROMETHEUS_URL
+from config import ALERT_FILTER_KEYWORDS, PROMETHEUS_URL
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +103,7 @@ def get_alert_rules() -> dict:
         for group in data["data"]["groups"]:
             for rule in group["rules"]:
                 if rule.get("type") == "alerting" and any(
-                    kw in rule["name"] for kw in ("Zeebe", "Camunda")
+                    kw in rule["name"] for kw in ALERT_FILTER_KEYWORDS
                 ):
                     camunda_rules.append({
                         "name": rule["name"],
