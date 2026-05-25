@@ -1,8 +1,13 @@
-# Evolução do Projeto — camunda-aiops
+# Evolução do Projeto — camunda-aiops (ADR Log)
 
-Este documento registra decisões técnicas, refatorações e melhorias aplicadas ao projeto.
-Cada entrada documenta: o que foi feito, por que foi feito e as fontes consultadas.
-Serve como histórico de decisões (ADR simplificado) para facilitar manutenção e onboarding.
+Este documento é o registro de **decisões arquiteturais e técnicas** (Architecture Decision Records — ADRs simplificados) do projeto.
+Complementa o `CHANGELOG.md` (que registra *o que* mudou) documentando o *porquê* de cada decisão: contexto, opções consideradas, trade-offs e fontes.
+
+**Diferença em relação ao CHANGELOG:**
+- `CHANGELOG.md` → histórico de mudanças por versão (o quê)
+- `projeto-evolucao.md` → raciocínio por trás das decisões (por quê)
+
+Essencial para manutenção, onboarding e auditorias de arquitetura.
 
 ---
 

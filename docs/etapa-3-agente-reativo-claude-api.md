@@ -3,7 +3,13 @@ titulo: Etapa 3 — Agente reativo com Claude API
 data: 2026-05-21
 status: concluída
 depende-de: etapa-2-grafana-mcp-server.md
+superseded-by: etapa-4-ollama-local-llm.md
 ---
+
+> **Nota histórica:** Esta etapa implementou o agente usando a **Claude API** (Anthropic Cloud).
+> Na Etapa 4 o LLM foi migrado para **Ollama local** (`qwen2.5:7b`) via SDK OpenAI-compatible,
+> tornando o ciclo 100% air-gapped. O fluxo arquitetural descrito aqui permanece válido;
+> apenas o provedor do LLM e o SDK mudaram. Veja `etapa-4-ollama-local-llm.md` para os detalhes da migração.
 
 # Etapa 3 — Agente reativo com Claude API
 

@@ -76,7 +76,7 @@ ensure_port_forwards
 log_step "Enviando cards de teste"
 PYTHONPATH="${PROJECT_DIR}/agent" \
     "${PROJECT_DIR}/.venv/bin/python" \
-    "${PROJECT_DIR}/tests/test_teams_notifier.py" "$@"
+    "${PROJECT_DIR}/tests/smoke/test_teams_notifier.py" "$@"
 
 echo ""
 echo -e "  ${YELLOW}Port-forwards ainda ativos.${RESET}"

@@ -13,7 +13,7 @@ PYTEST  := .venv/bin/pytest
 RUFF    := .venv/bin/ruff
 
 .PHONY: run test test-integration test-e2e smoke demo lint \
-        port-forward check-metrics import-dashboard load \
+        port-forward check-metrics check-pod-metrics import-dashboard load \
         cycle-test cycle-test-fast help
 
 # ── Agente ─────────────────────────────────────────────────────────────────────
@@ -55,8 +55,11 @@ port-forward: ## Abre port-forwards para Prometheus e Grafana (Kind local)
 	kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090 &
 	kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80 &
 
-check-metrics: ## Inspeciona métricas disponíveis no Prometheus
+check-metrics: ## Inspeciona métricas disponíveis no Prometheus (via API)
 	./scripts/check-metrics.sh
+
+check-pod-metrics: ## Verifica se os pods expõem /actuator/prometheus diretamente (kubectl exec)
+	./scripts/test-port-metrics.sh
 
 import-dashboard: ## Importa o dashboard de forecasting no Grafana
 	./scripts/import-dashboard.sh

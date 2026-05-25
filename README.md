@@ -36,7 +36,8 @@ camunda-aiops/
 │   ├── webhook_receiver.py       # FastAPI — recebe payloads do Alertmanager
 │   └── prompts.py                # loader de prompts do diretório prompts/
 ├── prompts/
-│   ├── system-prompt-v1.md       # system prompt do agente (versionado)
+│   ├── system-prompt-v1.md       # system prompt v1 — DEPRECIADO (referência histórica)
+│   ├── system-prompt-v2.md       # system prompt v2 — versão em uso
 │   └── GUIDELINES.md             # regras de versionamento de prompts
 ├── alerting/
 │   ├── camunda-forecasting-rules.yaml      # PrometheusRules preditivas (IaC)
@@ -46,22 +47,26 @@ camunda-aiops/
 │   └── camunda-forecasting.json  # dashboard Grafana — 11 painéis
 ├── scripts/
 │   ├── run-cycle-test.sh         # ciclo completo automatizado com auto-recuperação
-│   ├── check-metrics.sh          # inspeciona métricas no Prometheus
+│   ├── demo.sh                   # demo autossuficiente — inicia Ollama + agente + 4 cenários
+│   ├── smoke.sh                  # smoke test — envia cards de teste para o Teams
+│   ├── check-metrics.sh          # inspeciona métricas disponíveis no Prometheus (via API)
+│   ├── test-port-metrics.sh      # verifica se pods expõem /actuator/prometheus (kubectl exec)
 │   ├── load-generator.sh         # gera carga sintética com sazonalidade
-│   ├── import-dashboard.sh       # importa o dashboard via API do Grafana
-│   └── test-port-metrics.sh      # testa endpoints /actuator/prometheus
+│   └── import-dashboard.sh       # importa o dashboard via API do Grafana
 ├── tests/
 │   ├── fixtures/                 # payloads de alerta para testes
-│   ├── unit/                     # 158 testes unitários (sem infraestrutura)
+│   ├── unit/                     # 198 testes unitários (sem infraestrutura)
 │   │   ├── test_config.py        # 8 testes — carregamento do .env + _BRTFormatter
 │   │   ├── test_webhook_receiver.py  # 28 testes — endpoints FastAPI (incl. /runbook)
-│   │   ├── test_reactive_agent.py    # 9 testes — loop agentic com tool use
+│   │   ├── test_reactive_agent.py    # 16 testes — loop agentic + injeção de contexto RAG
 │   │   ├── test_runbook_generator.py # 42 testes — geração, fallback, Markdown→HTML
 │   │   ├── test_tools.py             # 22 testes — queries Prometheus + _resolve_ts
 │   │   ├── test_teams_notifier_unit.py  # 32 testes — Adaptive Card e helpers
 │   │   ├── test_metrics.py           # 9 testes — definição e registro das métricas
+│   │   ├── test_knowledge_base.py    # 33 testes — KB: init, search, scoring, persistência
 │   │   └── test_alert_fixtures.py    # 7 testes — estrutura dos fixtures JSON
-│   ├── test_teams_notifier.py    # smoke test de notificações Teams (requer .env)
+│   ├── smoke/                    # smoke tests manuais (não executados pelo pytest)
+│   │   └── test_teams_notifier.py   # envia cards reais para o Teams (requer .env)
 │   ├── integration/              # testes contra Prometheus real (Testcontainers)
 │   └── e2e/                      # ciclo completo: webhook → agente → LLM → Teams
 ├── docs/                         # documentação por etapa e decisões técnicas
@@ -144,7 +149,7 @@ Esta tabela é o ponto de entrada para qualquer dúvida sobre qual comando execu
 | `make smoke` | Verificar se o card Teams está chegando e bem formatado | Não | Não | Formatação do card, webhook Teams |
 | `make demo` | Apresentar ao time, ensaiar o pitch, demonstrar o ciclo real | Não | Sim (sobe automático) | Agente + LLM + runbook + Teams |
 | `make cycle-test` | Validar que o cluster Kubernetes está configurado corretamente | Sim | Sim | PrometheusRule → Alertmanager → webhook → agente |
-| `make test` | Antes de um commit, verificar que nada quebrou | Não | Não | 159 testes unitários, cobertura 100% |
+| `make test` | Antes de um commit, verificar que nada quebrou | Não | Não | 198 testes unitários, cobertura 100% |
 | `make test-integration` | Validar queries Prometheus após alterar `tools.py` | Docker | Não | `tools.py` contra Prometheus real (Testcontainers) |
 | `make run` | Desenvolver localmente com recarregamento automático | Não | Sim | — (inicia o agente em modo dev) |
 

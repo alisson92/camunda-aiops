@@ -8,6 +8,26 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added (Revisão A — Limpeza e organização do repositório)
+- `docs/revisao-A-limpeza-repositorio.md` — documento desta revisão: o que foi feito e por quê
+- `docs/etapa-6-ciclo-completo.md` — documentação da Etapa 6 (`run-cycle-test.sh`), faltava desde a implementação
+- `docs/etapa-12-rag-conhecimento.md` — documentação da Etapa 12 (RAG + few-shot), faltava desde a implementação
+- `tests/smoke/` — novo subdiretório para smoke tests; `tests/smoke/__init__.py` criado
+- `Makefile`: target `check-pod-metrics` → `scripts/test-port-metrics.sh` (script existia sem target)
+
+### Changed (Revisão A)
+- `tests/smoke/test_teams_notifier.py` — movido de `tests/test_teams_notifier.py` para alinhar com estrutura `unit/` / `integration/` / `e2e/`
+- `scripts/smoke.sh` — caminho do smoke test atualizado para `tests/smoke/test_teams_notifier.py`
+- `docs/etapa-7-qualidade-ci.md` — renomeado de `etapa-5-github-actions.md` (numeração estava errada: CI é Etapa 7, não 5)
+- `docs/etapa-3-agente-reativo-claude-api.md` — nota histórica adicionada: agente migrado para Ollama na Etapa 4
+- `docs/projeto-evolucao.md` — cabeçalho clarificando papel de ADR log vs CHANGELOG
+- `prompts/system-prompt-v1.md` — notice de deprecação adicionado; direciona para v2
+- `Makefile`: descrição de `check-metrics` atualizada para distinguir de `check-pod-metrics`
+- `README.md` — árvore de diretórios atualizada: `tests/smoke/`, contagem de testes (198), `system-prompt-v2.md` listado, `demo.sh` e `smoke.sh` incluídos em `scripts/`
+
+### Removed (Revisão A)
+- `data/knowledge/runbooks/zeebe-memory-predicted-high-aabbccdd.md` — artefato de teste manual com conteúdo placeholder removido
+
 ### Added (Etapa 12 — Few-shot + RAG)
 - `agent/knowledge_base.py` — `KnowledgeBase` com `add_document`, `search(alert_name, k)`, persistência de runbooks em `data/knowledge/runbooks/` e carregamento de exemplos curados de `data/knowledge/examples/`; scoring por match exato de alertname (+10) e sobreposição de tokens; sem dependência externa
 - `data/knowledge/examples/zeebe-backpressure-growing.md` — exemplo curado de análise ideal para alerta critical de backpressure (few-shot)

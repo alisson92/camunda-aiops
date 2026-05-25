@@ -1,3 +1,9 @@
+> **DEPRECIADO** — Este é o system prompt v1, mantido apenas como referência histórica.
+> A versão em uso é `system-prompt-v2.md` (introduzida na Etapa 9).
+> Consulte `prompts/GUIDELINES.md` para o histórico de versões.
+
+---
+
 ## Papel
 
 Você é um agente SRE especializado em Kubernetes e Camunda 8.
