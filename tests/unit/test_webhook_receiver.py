@@ -168,6 +168,30 @@ class TestWebhookEndpoint:
         resp = tc.post("/webhook", json=payload)
         assert resp.json()["analyses"][0]["analysis"] == "análise mockada"
 
+    def test_teams_notification_failure_is_tracked(self):
+        """Cobre o branch TEAMS_NOTIFICATIONS success=false."""
+        with (
+            patch("webhook_receiver.run_agent", return_value="análise"),
+            patch("webhook_receiver.send_alert_to_teams", return_value=False),
+        ):
+            from webhook_receiver import app
+
+            tc = TestClient(app)
+            payload = {
+                "alerts": [
+                    {
+                        "status": "firing",
+                        "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical"},
+                        "annotations": {},
+                        "startsAt": "2026-05-24T10:00:00Z",
+                        "endsAt": "0001-01-01T00:00:00Z",
+                    }
+                ]
+            }
+            resp = tc.post("/webhook", json=payload)
+        assert resp.status_code == 200
+        assert len(resp.json()["analyses"]) == 1
+
 
 # ---------------------------------------------------------------------------
 # /silence
@@ -233,3 +257,27 @@ class TestSilenceEndpoint:
             tc = self._make_client()
             resp = tc.get("/silence?duration=1h")
         assert resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# /metrics
+# ---------------------------------------------------------------------------
+
+
+class TestMetricsEndpoint:
+    def test_returns_200(self, client):
+        tc, *_ = client
+        resp = tc.get("/metrics")
+        assert resp.status_code == 200
+
+    def test_content_type_is_prometheus(self, client):
+        tc, *_ = client
+        resp = tc.get("/metrics")
+        assert "text/plain" in resp.headers["content-type"]
+
+    def test_aiops_metrics_present(self, client):
+        tc, *_ = client
+        resp = tc.get("/metrics")
+        assert "aiops_webhooks_total" in resp.text
+        assert "aiops_alerts_processed_total" in resp.text
+        assert "aiops_analysis_duration_seconds" in resp.text

@@ -9,6 +9,19 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `agent/metrics.py` — ponto único de definição de métricas Prometheus: `aiops_webhooks_total`, `aiops_alerts_processed_total`, `aiops_alerts_filtered_total`, `aiops_analysis_duration_seconds`, `aiops_llm_tool_calls_total`, `aiops_teams_notifications_total`
+- `GET /metrics` em `webhook_receiver.py` — endpoint Prometheus text/plain via `generate_latest()`
+- `dashboards/camunda-aiops-agent.json` — dashboard Grafana com 3 seções: Webhooks & Alertas, Desempenho da Análise (p50/p90/p99), Notificações Teams
+- `tests/unit/test_metrics.py` — 9 testes de definição e registro das métricas
+- `docs/etapa-10-observabilidade-agente.md` — documentação da etapa: problema, solução, decisões técnicas, instruções de import do dashboard
+- `pyproject.toml` — dependência `prometheus-client>=0.20.0,<1.0.0`
+
+### Changed
+- `agent/webhook_receiver.py` — instrumentado com `WEBHOOKS_RECEIVED`, `ALERTS_FILTERED`, `ALERTS_PROCESSED`, `ANALYSIS_DURATION.time()`, `TEAMS_NOTIFICATIONS`; adicionado endpoint `GET /metrics`
+- `agent/reactive_agent.py` — instrumentado com `LLM_TOOL_CALLS` por nome de ferramenta
+- `tests/unit/test_webhook_receiver.py` — adicionados 4 testes: `/metrics` (status, content-type, métricas presentes) e branch `success=false` de notificação
+
+### Added
 - `prompts/system-prompt-v2.md` — adiciona campo URGÊNCIA (Imediata/Alta/Moderada) ao formato firing; formato dedicado para `resolved` (RESOLUÇÃO/CONFIRMAÇÃO/PRÓXIMO_PASSO); contexto dos 6 componentes Camunda 8; dois exemplos de output (critical + resolved)
 - `docs/etapa-9-system-prompt-v2.md` — documentação da etapa: problema, decisões, comparação v1 vs v2, rollback
 

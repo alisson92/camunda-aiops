@@ -12,6 +12,7 @@ import logging
 from openai import OpenAI
 
 from config import OLLAMA_BASE_URL, OLLAMA_MODEL
+from metrics import LLM_TOOL_CALLS
 from prompts import SYSTEM_PROMPT, build_user_message
 from tools import TOOL_DISPATCH, TOOL_SCHEMAS
 
@@ -65,6 +66,7 @@ def run_agent(alert_name: str, alert_labels: dict, alert_annotations: dict, stat
                 logger.warning("Erro ao parsear argumentos de %s: %s", tool_name, e)
 
             logger.info("Ferramenta: %s(%s)", tool_name, json.dumps(tool_input, ensure_ascii=False))
+            LLM_TOOL_CALLS.labels(tool_name=tool_name).inc()
 
             fn = TOOL_DISPATCH.get(tool_name)
             if fn is None:

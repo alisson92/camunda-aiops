@@ -13,9 +13,17 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from config import ALERTMANAGER_URL, setup_logging
+from metrics import (
+    ALERTS_FILTERED,
+    ALERTS_PROCESSED,
+    ANALYSIS_DURATION,
+    TEAMS_NOTIFICATIONS,
+    WEBHOOKS_RECEIVED,
+)
 from reactive_agent import run_agent
 from teams_notifier import send_alert_to_teams
 
@@ -30,6 +38,12 @@ async def health():
     return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
+@app.get("/metrics", response_class=PlainTextResponse)
+async def metrics_endpoint():
+    """Expõe métricas do agente no formato Prometheus text/plain."""
+    return PlainTextResponse(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
 @app.post("/webhook")
 async def alertmanager_webhook(request: Request):
     """
@@ -39,11 +53,15 @@ async def alertmanager_webhook(request: Request):
     try:
         payload = await request.json()
     except Exception:
+        WEBHOOKS_RECEIVED.labels(status="invalid_json").inc()
         raise HTTPException(status_code=400, detail="Payload JSON inválido")
 
     alerts = payload.get("alerts", [])
     if not alerts:
+        WEBHOOKS_RECEIVED.labels(status="empty").inc()
         return JSONResponse({"message": "Nenhum alerta no payload", "processed": 0})
+
+    WEBHOOKS_RECEIVED.labels(status="success").inc()
 
     analyses = []
     for alert in alerts:
@@ -58,18 +76,22 @@ async def alertmanager_webhook(request: Request):
 
         if not any(kw in alert_name for kw in ("Zeebe", "Camunda")):
             logger.debug("Alerta %s ignorado (fora do escopo Camunda)", alert_name)
+            ALERTS_FILTERED.inc()
             continue
 
-        analysis = run_agent(
-            alert_name=alert_name,
-            alert_labels=labels,
-            alert_annotations=annotations,
-            status=status,
-        )
+        with ANALYSIS_DURATION.time():
+            analysis = run_agent(
+                alert_name=alert_name,
+                alert_labels=labels,
+                alert_annotations=annotations,
+                status=status,
+            )
 
+        severity = labels.get("severity", "unknown")
+        ALERTS_PROCESSED.labels(alertname=alert_name, severity=severity).inc()
         logger.info("Análise concluída para %s:\n%s", alert_name, analysis)
 
-        send_alert_to_teams(
+        notified = send_alert_to_teams(
             alert_name=alert_name,
             alert_labels=labels,
             alert_annotations=annotations,
@@ -78,6 +100,7 @@ async def alertmanager_webhook(request: Request):
             starts_at=starts_at,
             ends_at=ends_at,
         )
+        TEAMS_NOTIFICATIONS.labels(success=str(notified).lower()).inc()
 
         analyses.append({"alertname": alert_name, "status": status, "analysis": analysis})
 
