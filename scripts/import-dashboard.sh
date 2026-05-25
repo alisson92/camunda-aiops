@@ -96,15 +96,15 @@ SKIPPED=0
 
 for DASHBOARD_FILE in "${DASHBOARDS_DIR}"/*.json; do
   TITLE=$(python3 -c "import json; d=json.load(open('${DASHBOARD_FILE}')); print(d.get('title','?'))" 2>/dev/null)
-  UID=$(python3 -c "import json; d=json.load(open('${DASHBOARD_FILE}')); print(d.get('uid',''))" 2>/dev/null)
+  DASH_UID=$(python3 -c "import json; d=json.load(open('${DASHBOARD_FILE}')); print(d.get('uid',''))" 2>/dev/null)
 
   # Verificar se uid já existe no Grafana antes de importar
-  if [[ -n "$UID" ]]; then
+  if [[ -n "$DASH_UID" ]]; then
     HTTP_CHECK=$(curl -s -o /dev/null -w "%{http_code}" \
       -u "${GRAFANA_USER}:${GRAFANA_PASS}" \
-      "${GRAFANA_URL}/api/dashboards/uid/${UID}")
+      "${GRAFANA_URL}/api/dashboards/uid/${DASH_UID}")
     if [[ "$HTTP_CHECK" == "200" ]]; then
-      echo -e "  ${YELLOW}→ já existe:${NC} ${TITLE} (uid: ${UID})"
+      echo -e "  ${YELLOW}→ já existe:${NC} ${TITLE} (uid: ${DASH_UID})"
       SKIPPED=$((SKIPPED + 1))
       continue
     fi

@@ -464,5 +464,5 @@ if [[ "${DRY_RUN}" != "true" ]]; then
     echo -e "  ${YELLOW}Agente e port-forwards ainda estão ativos.${RESET}"
     echo -e "  Interaja com os cards no Teams e pressione ${BOLD}ENTER${RESET} quando terminar."
     echo ""
-    read -r
+    read -r || true
 fi
