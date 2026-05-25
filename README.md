@@ -156,6 +156,11 @@ make demo-resolved       # resolved — lifecycle completo
 
 Cada cenário envia o payload ao webhook, aguarda o LLM processar e exibe os primeiros caracteres da análise no terminal. O card completo chega no Microsoft Teams.
 
+> **`demo.sh` vs `run-cycle-test.sh`:** os dois scripts têm propósitos complementares, não redundantes.
+> `demo.sh` valida **o agente** — dado um alerta qualquer, o LLM analisa e o Teams recebe o card. Não precisa de Kind.
+> `run-cycle-test.sh` valida **a pipeline de infraestrutura** — PrometheusRule dispara, Alertmanager roteia, webhook recebe. Requer Kind ativo.
+> Use `demo.sh` para apresentações e ensaios; use `run-cycle-test.sh` para validar que o cluster está configurado corretamente.
+
 ---
 
 ## Ciclo completo automatizado
