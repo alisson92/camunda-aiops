@@ -30,6 +30,7 @@ camunda-aiops/
 ├── agent/                        # pacote Python do agente AIOps
 │   ├── config.py                 # ponto único de configuração (env vars)
 │   ├── reactive_agent.py         # loop agentic com tool use (Ollama)
+│   ├── runbook_generator.py      # geração de runbooks Markdown via LLM + renderer HTML
 │   ├── tools.py                  # ferramentas: queries Prometheus HTTP API
 │   ├── teams_notifier.py         # notificações via Adaptive Card v1.2
 │   ├── webhook_receiver.py       # FastAPI — recebe payloads do Alertmanager
@@ -51,12 +52,14 @@ camunda-aiops/
 │   └── test-port-metrics.sh      # testa endpoints /actuator/prometheus
 ├── tests/
 │   ├── fixtures/                 # payloads de alerta para testes
-│   ├── unit/                     # 88 testes unitários (sem infraestrutura)
-│   │   ├── test_config.py        # 6 testes — carregamento do .env
-│   │   ├── test_webhook_receiver.py  # 22 testes — endpoints FastAPI
-│   │   ├── test_reactive_agent.py    # 12 testes — loop agentic com tool use
+│   ├── unit/                     # 158 testes unitários (sem infraestrutura)
+│   │   ├── test_config.py        # 8 testes — carregamento do .env + _BRTFormatter
+│   │   ├── test_webhook_receiver.py  # 28 testes — endpoints FastAPI (incl. /runbook)
+│   │   ├── test_reactive_agent.py    # 9 testes — loop agentic com tool use
+│   │   ├── test_runbook_generator.py # 42 testes — geração, fallback, Markdown→HTML
 │   │   ├── test_tools.py             # 22 testes — queries Prometheus + _resolve_ts
-│   │   ├── test_teams_notifier_unit.py  # 19 testes — Adaptive Card e helpers
+│   │   ├── test_teams_notifier_unit.py  # 32 testes — Adaptive Card e helpers
+│   │   ├── test_metrics.py           # 9 testes — definição e registro das métricas
 │   │   └── test_alert_fixtures.py    # 7 testes — estrutura dos fixtures JSON
 │   ├── test_teams_notifier.py    # smoke test de notificações Teams (requer .env)
 │   ├── integration/              # testes contra Prometheus real (Testcontainers)

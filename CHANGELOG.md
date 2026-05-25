@@ -8,6 +8,18 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added (Etapa 11 — Runbook Generation)
+- `agent/runbook_generator.py` — módulo de geração de runbooks: `generate_runbook()` (segunda chamada LLM sem tool use), `_make_alert_id()` (slug URL-safe + MD5[:8]), `_infer_component()`, `_fallback_runbook()` (gerado localmente se LLM falhar), `_markdown_to_html()` (renderer Markdown→HTML sem dependência externa), `render_runbook_html()` (página HTML completa estilizada)
+- `GET /runbook/{alert_id}` em `webhook_receiver.py` — serve runbook em HTML; `alert_id` retornado no campo `runbook_id` da resposta do `/webhook`
+- `_runbooks: dict[str, tuple[str, str]]` — store em memória (`alert_id → (alert_name, runbook_md)`)
+- Botão "📖 Runbook" no card Teams agora aponta para URL do agente (`{AGENT_PUBLIC_URL}/runbook/{alert_id}`) gerada automaticamente para alertas `firing`
+- `tests/unit/test_runbook_generator.py` — 42 testes: `_make_alert_id`, `_infer_component`, `_fallback_runbook`, `generate_runbook` (sucesso, falha LLM, conteúdo vazio), `_markdown_to_html` (h1/h2/h3, bold, inline code, fenced code, ul, ol, parágrafos, escape HTML), `render_runbook_html`
+
+### Changed (Etapa 11)
+- `agent/webhook_receiver.py` — integra `generate_runbook` após `run_agent` (apenas alertas `firing`); armazena runbook no store; passa `runbook_url` para `send_alert_to_teams`; resposta do `/webhook` inclui campo `runbook_id`; importa `AGENT_PUBLIC_URL` de config
+- `agent/teams_notifier.py` — `send_alert_to_teams` recebe novo parâmetro `runbook_url: str = ""`; URL gerada tem prioridade sobre `runbook_url` das annotations
+- `tests/unit/test_webhook_receiver.py` — fixture atualizada com `mock_runbook`; 6 testes novos: `/runbook/{alert_id}` (found/404/HTML/alert_name), `generate_runbook` chamado para firing e não chamado para resolved, `runbook_id` na resposta
+
 ### Added
 - `agent/metrics.py` — ponto único de definição de métricas Prometheus: `aiops_webhooks_total`, `aiops_alerts_processed_total`, `aiops_alerts_filtered_total`, `aiops_analysis_duration_seconds`, `aiops_llm_tool_calls_total`, `aiops_teams_notifications_total`
 - `GET /metrics` em `webhook_receiver.py` — endpoint Prometheus text/plain via `generate_latest()`

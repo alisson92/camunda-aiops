@@ -187,6 +187,7 @@ def send_alert_to_teams(
     analysis: str,
     starts_at: str = "",
     ends_at: str = "",
+    runbook_url: str = "",
 ) -> bool:
     """
     Envia Adaptive Card para o Teams com análise AIOps.
@@ -201,7 +202,7 @@ def send_alert_to_teams(
     severity    = alert_labels.get("severity", "info")
     summary     = alert_annotations.get("summary", "")
     description = alert_annotations.get("description", "").strip()
-    runbook_url = alert_annotations.get("runbook_url", "")
+    runbook_url = runbook_url or alert_annotations.get("runbook_url", "")
 
     started_str  = _format_alert_time(starts_at) if starts_at else datetime.now(_BRT).strftime("%d/%m/%Y %H:%M")
     resolved_str = _format_alert_time(ends_at) if ends_at else ""

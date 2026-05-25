@@ -16,7 +16,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
-from config import ALERTMANAGER_URL, setup_logging
+from config import AGENT_PUBLIC_URL, ALERTMANAGER_URL, setup_logging
 from metrics import (
     ALERTS_FILTERED,
     ALERTS_PROCESSED,
@@ -25,7 +25,11 @@ from metrics import (
     WEBHOOKS_RECEIVED,
 )
 from reactive_agent import run_agent
+from runbook_generator import generate_runbook, render_runbook_html
 from teams_notifier import send_alert_to_teams
+
+# Armazena runbooks gerados em memória: alert_id → (alert_name, runbook_markdown)
+_runbooks: dict[str, tuple[str, str]] = {}
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -91,6 +95,21 @@ async def alertmanager_webhook(request: Request):
         ALERTS_PROCESSED.labels(alertname=alert_name, severity=severity).inc()
         logger.info("Análise concluída para %s:\n%s", alert_name, analysis)
 
+        runbook_id = ""
+        if status != "resolved":
+            runbook_id, runbook_md = generate_runbook(
+                alert_name=alert_name,
+                alert_labels=labels,
+                analysis=analysis,
+                starts_at=starts_at,
+            )
+            _runbooks[runbook_id] = (alert_name, runbook_md)
+            logger.info("Runbook armazenado: id=%s", runbook_id)
+
+        generated_runbook_url = (
+            f"{AGENT_PUBLIC_URL}/runbook/{runbook_id}" if runbook_id else ""
+        )
+
         notified = send_alert_to_teams(
             alert_name=alert_name,
             alert_labels=labels,
@@ -99,15 +118,30 @@ async def alertmanager_webhook(request: Request):
             analysis=analysis,
             starts_at=starts_at,
             ends_at=ends_at,
+            runbook_url=generated_runbook_url,
         )
         TEAMS_NOTIFICATIONS.labels(success=str(notified).lower()).inc()
 
-        analyses.append({"alertname": alert_name, "status": status, "analysis": analysis})
+        analyses.append({
+            "alertname": alert_name,
+            "status": status,
+            "analysis": analysis,
+            "runbook_id": runbook_id,
+        })
 
     return JSONResponse({
         "message": f"{len(analyses)} alerta(s) analisado(s)",
         "analyses": analyses,
     })
+
+
+@app.get("/runbook/{alert_id}", response_class=HTMLResponse)
+async def get_runbook(alert_id: str):
+    """Serve o runbook gerado para um alerta específico (gerado pelo agente após análise)."""
+    if alert_id not in _runbooks:
+        raise HTTPException(status_code=404, detail=f"Runbook '{alert_id}' não encontrado.")
+    alert_name, runbook_md = _runbooks[alert_id]
+    return HTMLResponse(render_runbook_html(alert_name, runbook_md))
 
 
 @app.get("/silence", response_class=HTMLResponse)

@@ -156,9 +156,10 @@ prometheus:
 | 7 | Qualidade: 100% cobertura, testes integração + E2E, CI 5 jobs | ✅ Concluída |
 | 8 | **Demo mode (`make demo`) — sem Kind, sem alertas reais** | 🔄 Em andamento |
 | 9 | Refinamento do system prompt v2 | ⏳ Próxima |
-| 10 | Dashboard de observabilidade do próprio agente | ⏳ Planejada |
-| 11 | Runbook generation automático | ⏳ Planejada |
-| 12 | Pipeline Prophet para sazonalidade | ⏳ Longo prazo |
+| 10 | Dashboard de observabilidade do próprio agente | ✅ Concluída |
+| 11 | Runbook generation automático | ✅ Concluída |
+| 12 | Few-shot + RAG com histórico de incidentes | ⏳ Próxima |
+| 13 | Pipeline Prophet para sazonalidade | ⏳ Longo prazo |
 
 ---
 

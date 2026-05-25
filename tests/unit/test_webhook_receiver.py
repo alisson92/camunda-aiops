@@ -13,16 +13,24 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+_MOCK_RUNBOOK_ID = "zeebe-memory-predicted-high-aabbccdd"
+_MOCK_RUNBOOK_MD = "# Runbook: ZeebeMemoryPredictedHigh\n\nconteúdo"
+
+
 @pytest.fixture()
 def client():
     """Cria o TestClient isolando chamadas externas do agente."""
     with (
         patch("webhook_receiver.run_agent", return_value="análise mockada") as mock_agent,
         patch("webhook_receiver.send_alert_to_teams", return_value=True) as mock_teams,
+        patch(
+            "webhook_receiver.generate_runbook",
+            return_value=(_MOCK_RUNBOOK_ID, _MOCK_RUNBOOK_MD),
+        ) as mock_runbook,
     ):
         from webhook_receiver import app
 
-        yield TestClient(app), mock_agent, mock_teams
+        yield TestClient(app), mock_agent, mock_teams, mock_runbook
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +75,7 @@ class TestWebhookEndpoint:
         assert resp.json()["processed"] == 0
 
     def test_non_camunda_alert_is_filtered(self, client):
-        tc, mock_agent, _ = client
+        tc, mock_agent, *_ = client
         payload = {
             "alerts": [
                 {
@@ -85,7 +93,7 @@ class TestWebhookEndpoint:
         mock_agent.assert_not_called()
 
     def test_zeebe_alert_triggers_agent_and_teams(self, client):
-        tc, mock_agent, mock_teams = client
+        tc, mock_agent, mock_teams, _ = client
         payload = {
             "alerts": [
                 {
@@ -110,7 +118,7 @@ class TestWebhookEndpoint:
         mock_teams.assert_called_once()
 
     def test_camunda_alert_triggers_agent(self, client):
-        tc, mock_agent, _ = client
+        tc, mock_agent, *_ = client
         payload = {
             "alerts": [
                 {
@@ -128,7 +136,7 @@ class TestWebhookEndpoint:
         mock_agent.assert_called_once()
 
     def test_multiple_alerts_processes_only_camunda(self, client):
-        tc, mock_agent, _ = client
+        tc, mock_agent, *_ = client
         payload = {
             "alerts": [
                 {
@@ -168,11 +176,63 @@ class TestWebhookEndpoint:
         resp = tc.post("/webhook", json=payload)
         assert resp.json()["analyses"][0]["analysis"] == "análise mockada"
 
+    def test_response_includes_runbook_id(self, client):
+        tc, *_ = client
+        payload = {
+            "alerts": [
+                {
+                    "status": "firing",
+                    "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical"},
+                    "annotations": {},
+                    "startsAt": "2026-05-24T10:00:00Z",
+                    "endsAt": "0001-01-01T00:00:00Z",
+                }
+            ]
+        }
+        resp = tc.post("/webhook", json=payload)
+        assert "runbook_id" in resp.json()["analyses"][0]
+
+    def test_generate_runbook_called_for_firing(self, client):
+        tc, _, _, mock_runbook = client
+        payload = {
+            "alerts": [
+                {
+                    "status": "firing",
+                    "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical"},
+                    "annotations": {},
+                    "startsAt": "2026-05-24T10:00:00Z",
+                    "endsAt": "0001-01-01T00:00:00Z",
+                }
+            ]
+        }
+        tc.post("/webhook", json=payload)
+        mock_runbook.assert_called_once()
+
+    def test_generate_runbook_not_called_for_resolved(self, client):
+        tc, _, _, mock_runbook = client
+        payload = {
+            "alerts": [
+                {
+                    "status": "resolved",
+                    "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical"},
+                    "annotations": {},
+                    "startsAt": "2026-05-24T10:00:00Z",
+                    "endsAt": "2026-05-24T10:30:00Z",
+                }
+            ]
+        }
+        tc.post("/webhook", json=payload)
+        mock_runbook.assert_not_called()
+
     def test_teams_notification_failure_is_tracked(self):
         """Cobre o branch TEAMS_NOTIFICATIONS success=false."""
         with (
             patch("webhook_receiver.run_agent", return_value="análise"),
             patch("webhook_receiver.send_alert_to_teams", return_value=False),
+            patch(
+                "webhook_receiver.generate_runbook",
+                return_value=(_MOCK_RUNBOOK_ID, _MOCK_RUNBOOK_MD),
+            ),
         ):
             from webhook_receiver import app
 
@@ -191,6 +251,65 @@ class TestWebhookEndpoint:
             resp = tc.post("/webhook", json=payload)
         assert resp.status_code == 200
         assert len(resp.json()["analyses"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# /runbook/{alert_id}
+# ---------------------------------------------------------------------------
+
+
+class TestRunbookEndpoint:
+    _FIRING_PAYLOAD = {
+        "alerts": [
+            {
+                "status": "firing",
+                "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical"},
+                "annotations": {},
+                "startsAt": "2026-05-24T10:00:00Z",
+                "endsAt": "0001-01-01T00:00:00Z",
+            }
+        ]
+    }
+
+    def test_runbook_found_after_webhook(self, client):
+        tc, *_ = client
+        tc.post("/webhook", json=self._FIRING_PAYLOAD)
+        resp = tc.get(f"/runbook/{_MOCK_RUNBOOK_ID}")
+        assert resp.status_code == 200
+
+    def test_runbook_response_is_html(self, client):
+        tc, *_ = client
+        tc.post("/webhook", json=self._FIRING_PAYLOAD)
+        resp = tc.get(f"/runbook/{_MOCK_RUNBOOK_ID}")
+        assert "text/html" in resp.headers["content-type"]
+
+    def test_runbook_html_contains_alert_name(self, client):
+        tc, *_ = client
+        tc.post("/webhook", json=self._FIRING_PAYLOAD)
+        resp = tc.get(f"/runbook/{_MOCK_RUNBOOK_ID}")
+        assert "ZeebeMemoryPredictedHigh" in resp.text
+
+    def test_runbook_not_found_returns_404(self, client):
+        tc, *_ = client
+        resp = tc.get("/runbook/alert-inexistente-00000000")
+        assert resp.status_code == 404
+
+    def test_resolved_alert_has_no_runbook(self, client):
+        tc, *_ = client
+        resolved_payload = {
+            "alerts": [
+                {
+                    "status": "resolved",
+                    "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical"},
+                    "annotations": {},
+                    "startsAt": "2026-05-24T10:00:00Z",
+                    "endsAt": "2026-05-24T10:30:00Z",
+                }
+            ]
+        }
+        post_resp = tc.post("/webhook", json=resolved_payload)
+        runbook_id = post_resp.json()["analyses"][0]["runbook_id"]
+        assert runbook_id == ""
 
 
 # ---------------------------------------------------------------------------
