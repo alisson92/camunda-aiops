@@ -21,7 +21,7 @@ from config import (
     DEDUP_TTL_SECONDS,
     setup_logging,
 )
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from knowledge_base import KnowledgeBase
 from metrics import (
@@ -120,11 +120,79 @@ async def metrics_endpoint():
     return PlainTextResponse(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
-@app.post("/webhook")
-async def alertmanager_webhook(request: Request):
+def _process_alert(alert: dict, alert_id: str) -> None:
+    """Executa o ciclo completo de análise para um alerta: LLM → runbook → Teams.
+
+    Chamado como BackgroundTask após o webhook retornar 202. O Alertmanager recebe
+    a confirmação imediatamente; o processamento acontece em paralelo sem bloquear
+    novos webhooks.
     """
-    Recebe payload do Alertmanager (formato padrão webhook_configs).
-    Aciona o agente para cada alerta firing no payload.
+    status      = alert.get("status", "firing")
+    labels      = alert.get("labels", {})
+    annotations = alert.get("annotations", {})
+    alert_name  = labels.get("alertname", "unknown")
+    starts_at   = alert.get("startsAt", "")
+    ends_at     = alert.get("endsAt", "")
+
+    context_docs = _kb.search(alert_name, k=2)
+    if context_docs:
+        logger.info("[%s] KB: %d doc(s) relevante(s) para %s", alert_id, len(context_docs), alert_name)
+
+    with ANALYSIS_DURATION.time():
+        analysis = run_agent(
+            alert_name=alert_name,
+            alert_labels=labels,
+            alert_annotations=annotations,
+            status=status,
+            context_docs=context_docs,
+            alert_id=alert_id,
+        )
+
+    severity = labels.get("severity", "unknown")
+    ALERTS_PROCESSED.labels(alertname=alert_name, severity=severity).inc()
+    logger.info("[%s] Análise concluída para %s:\n%s", alert_id, alert_name, analysis)
+
+    runbook_id = ""
+    if status != "resolved":
+        runbook_id, runbook_md = generate_runbook(
+            alert_name=alert_name,
+            alert_labels=labels,
+            analysis=analysis,
+            starts_at=starts_at,
+        )
+        _runbooks[runbook_id] = (alert_name, runbook_md)
+        _latest_runbook_by_name[alert_name] = runbook_id
+        logger.info("[%s] Runbook armazenado: id=%s alertname=%s", alert_id, runbook_id, alert_name)
+        _kb.add_document(
+            doc_id=runbook_id,
+            title=f"Runbook: {alert_name}",
+            content=runbook_md,
+            alert_name=alert_name,
+        )
+
+    generated_runbook_url = f"{AGENT_PUBLIC_URL}/runbook/{runbook_id}" if runbook_id else ""
+
+    notified = send_alert_to_teams(
+        alert_name=alert_name,
+        alert_labels=labels,
+        alert_annotations=annotations,
+        status=status,
+        analysis=analysis,
+        starts_at=starts_at,
+        ends_at=ends_at,
+        runbook_url=generated_runbook_url,
+    )
+    TEAMS_NOTIFICATIONS.labels(success=str(notified).lower()).inc()
+
+
+@app.post("/webhook", status_code=202)
+async def alertmanager_webhook(request: Request, background_tasks: BackgroundTasks):
+    """
+    Recebe payload do Alertmanager e enfileira cada alerta para análise assíncrona.
+
+    Retorna 202 Accepted imediatamente após validação e deduplicação — o Alertmanager
+    não bloqueia aguardando o LLM. A análise, geração de runbook e notificação Teams
+    ocorrem em background via BackgroundTasks do FastAPI.
     """
     try:
         payload = await request.json()
@@ -135,24 +203,22 @@ async def alertmanager_webhook(request: Request):
     alerts = payload.get("alerts", [])
     if not alerts:
         WEBHOOKS_RECEIVED.labels(status="empty").inc()
-        return JSONResponse({"message": "Nenhum alerta no payload", "processed": 0})
+        return JSONResponse({"message": "Nenhum alerta no payload", "queued": 0})
 
     WEBHOOKS_RECEIVED.labels(status="success").inc()
 
-    analyses = []
+    queued = 0
     for alert in alerts:
-        status      = alert.get("status", "firing")
-        labels      = alert.get("labels", {})
-        annotations = alert.get("annotations", {})
-        alert_name  = labels.get("alertname", "unknown")
-        starts_at   = alert.get("startsAt", "")
-        ends_at     = alert.get("endsAt", "")
+        status     = alert.get("status", "firing")
+        labels     = alert.get("labels", {})
+        alert_name = labels.get("alertname", "unknown")
+        alert_id   = uuid.uuid4().hex[:8]
 
-        alert_id = uuid.uuid4().hex[:8]
-        logger.info("[%s] Alerta recebido: %s | status: %s | labels: %s", alert_id, alert_name, status, json.dumps(labels))
+        logger.info("[%s] Alerta recebido: %s | status: %s | labels: %s",
+                    alert_id, alert_name, status, json.dumps(labels))
 
         if not any(kw in alert_name for kw in ALERT_FILTER_KEYWORDS):
-            logger.debug("[%s] Alerta %s ignorado (fora do escopo Camunda)", alert_id, alert_name)
+            logger.debug("[%s] Alerta %s ignorado (fora do escopo)", alert_id, alert_name)
             ALERTS_FILTERED.inc()
             continue
 
@@ -163,69 +229,14 @@ async def alertmanager_webhook(request: Request):
             ALERTS_DEDUPLICATED.inc()
             continue
 
-        context_docs = _kb.search(alert_name, k=2)
-        if context_docs:
-            logger.info("[%s] KB: %d doc(s) relevante(s) para %s", alert_id, len(context_docs), alert_name)
+        logger.info("[%s] Alerta %s enfileirado para análise em background", alert_id, alert_name)
+        background_tasks.add_task(_process_alert, alert, alert_id)
+        queued += 1
 
-        with ANALYSIS_DURATION.time():
-            analysis = run_agent(
-                alert_name=alert_name,
-                alert_labels=labels,
-                alert_annotations=annotations,
-                status=status,
-                context_docs=context_docs,
-                alert_id=alert_id,
-            )
-
-        severity = labels.get("severity", "unknown")
-        ALERTS_PROCESSED.labels(alertname=alert_name, severity=severity).inc()
-        logger.info("[%s] Análise concluída para %s:\n%s", alert_id, alert_name, analysis)
-
-        runbook_id = ""
-        if status != "resolved":
-            runbook_id, runbook_md = generate_runbook(
-                alert_name=alert_name,
-                alert_labels=labels,
-                analysis=analysis,
-                starts_at=starts_at,
-            )
-            _runbooks[runbook_id] = (alert_name, runbook_md)
-            _latest_runbook_by_name[alert_name] = runbook_id
-            logger.info("[%s] Runbook armazenado: id=%s alertname=%s", alert_id, runbook_id, alert_name)
-            _kb.add_document(
-                doc_id=runbook_id,
-                title=f"Runbook: {alert_name}",
-                content=runbook_md,
-                alert_name=alert_name,
-            )
-
-        generated_runbook_url = (
-            f"{AGENT_PUBLIC_URL}/runbook/{runbook_id}" if runbook_id else ""
-        )
-
-        notified = send_alert_to_teams(
-            alert_name=alert_name,
-            alert_labels=labels,
-            alert_annotations=annotations,
-            status=status,
-            analysis=analysis,
-            starts_at=starts_at,
-            ends_at=ends_at,
-            runbook_url=generated_runbook_url,
-        )
-        TEAMS_NOTIFICATIONS.labels(success=str(notified).lower()).inc()
-
-        analyses.append({
-            "alertname": alert_name,
-            "status": status,
-            "analysis": analysis,
-            "runbook_id": runbook_id,
-        })
-
-    return JSONResponse({
-        "message": f"{len(analyses)} alerta(s) analisado(s)",
-        "analyses": analyses,
-    })
+    return JSONResponse(
+        {"message": f"{queued} alerta(s) enfileirado(s)", "queued": queued},
+        status_code=202,
+    )
 
 
 @app.get("/runbook/{alert_id}", response_class=HTMLResponse)

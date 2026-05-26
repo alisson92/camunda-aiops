@@ -106,17 +106,17 @@ class TestWebhookEndpoint:
         resp = tc.post("/webhook", content=b"nao-e-json", headers={"content-type": "application/json"})
         assert resp.status_code == 400
 
-    def test_empty_alerts_list_returns_zero_processed(self, client):
+    def test_empty_alerts_list_returns_zero_queued(self, client):
         tc, *_ = client
         resp = tc.post("/webhook", json={"alerts": []})
         assert resp.status_code == 200
-        assert resp.json()["processed"] == 0
+        assert resp.json()["queued"] == 0
 
-    def test_missing_alerts_key_returns_zero_processed(self, client):
+    def test_missing_alerts_key_returns_zero_queued(self, client):
         tc, *_ = client
         resp = tc.post("/webhook", json={})
         assert resp.status_code == 200
-        assert resp.json()["processed"] == 0
+        assert resp.json()["queued"] == 0
 
     def test_non_camunda_alert_is_filtered(self, client):
         tc, mock_agent, *_ = client
@@ -132,11 +132,11 @@ class TestWebhookEndpoint:
             ]
         }
         resp = tc.post("/webhook", json=payload)
-        assert resp.status_code == 200
-        assert len(resp.json()["analyses"]) == 0
+        assert resp.status_code == 202
+        assert resp.json()["queued"] == 0
         mock_agent.assert_not_called()
 
-    def test_zeebe_alert_triggers_agent_and_teams(self, client):
+    def test_zeebe_alert_returns_202_and_triggers_agent(self, client):
         tc, mock_agent, mock_teams, _ = client
         payload = {
             "alerts": [
@@ -154,10 +154,8 @@ class TestWebhookEndpoint:
             ]
         }
         resp = tc.post("/webhook", json=payload)
-        assert resp.status_code == 200
-        body = resp.json()
-        assert len(body["analyses"]) == 1
-        assert body["analyses"][0]["alertname"] == "ZeebeMemoryPredictedHigh"
+        assert resp.status_code == 202
+        assert resp.json()["queued"] == 1
         mock_agent.assert_called_once()
         mock_teams.assert_called_once()
 
@@ -179,7 +177,7 @@ class TestWebhookEndpoint:
         assert "alert_id" in call_kwargs
         assert len(call_kwargs["alert_id"]) == 8
 
-    def test_camunda_alert_triggers_agent(self, client):
+    def test_camunda_alert_is_queued(self, client):
         tc, mock_agent, *_ = client
         payload = {
             "alerts": [
@@ -193,11 +191,11 @@ class TestWebhookEndpoint:
             ]
         }
         resp = tc.post("/webhook", json=payload)
-        assert resp.status_code == 200
-        assert len(resp.json()["analyses"]) == 1
+        assert resp.status_code == 202
+        assert resp.json()["queued"] == 1
         mock_agent.assert_called_once()
 
-    def test_multiple_alerts_processes_only_camunda(self, client):
+    def test_multiple_alerts_queues_only_matching(self, client):
         tc, mock_agent, *_ = client
         payload = {
             "alerts": [
@@ -218,41 +216,9 @@ class TestWebhookEndpoint:
             ]
         }
         resp = tc.post("/webhook", json=payload)
-        assert resp.status_code == 200
-        assert len(resp.json()["analyses"]) == 1
+        assert resp.status_code == 202
+        assert resp.json()["queued"] == 1
         assert mock_agent.call_count == 1
-
-    def test_response_includes_analysis_text(self, client):
-        tc, *_ = client
-        payload = {
-            "alerts": [
-                {
-                    "status": "firing",
-                    "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical"},
-                    "annotations": {},
-                    "startsAt": "2026-05-24T10:00:00Z",
-                    "endsAt": "0001-01-01T00:00:00Z",
-                }
-            ]
-        }
-        resp = tc.post("/webhook", json=payload)
-        assert resp.json()["analyses"][0]["analysis"] == "análise mockada"
-
-    def test_response_includes_runbook_id(self, client):
-        tc, *_ = client
-        payload = {
-            "alerts": [
-                {
-                    "status": "firing",
-                    "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical"},
-                    "annotations": {},
-                    "startsAt": "2026-05-24T10:00:00Z",
-                    "endsAt": "0001-01-01T00:00:00Z",
-                }
-            ]
-        }
-        resp = tc.post("/webhook", json=payload)
-        assert "runbook_id" in resp.json()["analyses"][0]
 
     def test_generate_runbook_called_for_firing(self, client):
         tc, _, _, mock_runbook = client
@@ -295,6 +261,7 @@ class TestWebhookEndpoint:
                 "webhook_receiver.generate_runbook",
                 return_value=(_MOCK_RUNBOOK_ID, _MOCK_RUNBOOK_MD),
             ),
+            patch.dict("webhook_receiver._dedup_cache", {}, clear=True),
         ):
             from webhook_receiver import app
 
@@ -311,8 +278,8 @@ class TestWebhookEndpoint:
                 ]
             }
             resp = tc.post("/webhook", json=payload)
-        assert resp.status_code == 200
-        assert len(resp.json()["analyses"]) == 1
+        assert resp.status_code == 202
+        assert resp.json()["queued"] == 1
 
 
 # ---------------------------------------------------------------------------
@@ -342,7 +309,7 @@ class TestDeduplication:
         tc, mock_agent, *_ = client
         with patch.dict("webhook_receiver._dedup_cache", {}, clear=True):
             resp = tc.post("/webhook", json=self._payload("fp-first"))
-        assert len(resp.json()["analyses"]) == 1
+        assert resp.json()["queued"] == 1
         mock_agent.assert_called_once()
 
     def test_duplicate_within_ttl_is_skipped(self, client):
@@ -351,7 +318,7 @@ class TestDeduplication:
             tc.post("/webhook", json=self._payload("fp-dup"))
             mock_agent.reset_mock()
             resp = tc.post("/webhook", json=self._payload("fp-dup"))
-        assert len(resp.json()["analyses"]) == 0
+        assert resp.json()["queued"] == 0
         mock_agent.assert_not_called()
 
     def test_resolved_is_never_deduplicated(self, client):
@@ -360,7 +327,7 @@ class TestDeduplication:
             tc.post("/webhook", json=self._payload("fp-res", status="resolved"))
             mock_agent.reset_mock()
             resp = tc.post("/webhook", json=self._payload("fp-res", status="resolved"))
-        assert len(resp.json()["analyses"]) == 1
+        assert resp.json()["queued"] == 1
         mock_agent.assert_called_once()
 
     def test_expired_entry_is_reprocessed(self, client):
@@ -368,14 +335,14 @@ class TestDeduplication:
         old_ts = datetime.now(UTC) - timedelta(minutes=10)
         with patch.dict("webhook_receiver._dedup_cache", {"fp-expired": old_ts}):
             resp = tc.post("/webhook", json=self._payload("fp-expired"))
-        assert len(resp.json()["analyses"]) == 1
+        assert resp.json()["queued"] == 1
         mock_agent.assert_called_once()
 
     def test_fingerprint_fallback_without_field(self, client):
         tc, mock_agent, *_ = client
         with patch.dict("webhook_receiver._dedup_cache", {}, clear=True):
             resp = tc.post("/webhook", json=self._payload(fingerprint=None))
-        assert len(resp.json()["analyses"]) == 1
+        assert resp.json()["queued"] == 1
         mock_agent.assert_called_once()
 
     def test_make_fingerprint_uses_native_field(self):
@@ -451,7 +418,7 @@ class TestRunbookEndpoint:
             _runbooks.pop(pre_id, None)
 
     def test_resolved_alert_has_no_runbook(self, client):
-        tc, *_ = client
+        tc, _, _, mock_runbook = client
         resolved_payload = {
             "alerts": [
                 {
@@ -463,9 +430,8 @@ class TestRunbookEndpoint:
                 }
             ]
         }
-        post_resp = tc.post("/webhook", json=resolved_payload)
-        runbook_id = post_resp.json()["analyses"][0]["runbook_id"]
-        assert runbook_id == ""
+        tc.post("/webhook", json=resolved_payload)
+        mock_runbook.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

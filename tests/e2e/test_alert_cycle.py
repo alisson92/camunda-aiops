@@ -82,9 +82,9 @@ class TestAlertCycleE2E:
 
         response = client.post("/webhook", json=ZEEBE_ALERT_PAYLOAD)
 
-        # 1. Webhook processado com sucesso — analyses contém 1 entrada
-        assert response.status_code == 200
-        assert len(response.json()["analyses"]) == 1
+        # 1. Webhook aceito imediatamente — análise ocorre em background
+        assert response.status_code == 202
+        assert response.json()["queued"] == 1
 
         # 2. LLM foi chamado duas vezes (tool_call + stop)
         llm_reqs = self._llm_requests(httpserver)
@@ -115,8 +115,8 @@ class TestAlertCycleE2E:
 
         response = client.post("/webhook", json=NON_CAMUNDA_ALERT_PAYLOAD)
 
-        assert response.status_code == 200
-        assert response.json()["analyses"] == []
+        assert response.status_code == 202
+        assert response.json()["queued"] == 0
         assert len(self._llm_requests(httpserver)) == 0
         assert len(self._teams_requests(httpserver)) == 0
 
