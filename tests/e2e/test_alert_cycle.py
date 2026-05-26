@@ -28,6 +28,7 @@ ZEEBE_ALERT_PAYLOAD = {
             "namespace": "camunda",
             "severity": "critical",
             "pod": "camunda-zeebe-0",
+            "agentia": "true",
         },
         "annotations": {
             "summary": "Zeebe heap projetado acima de 85% em 15min",
