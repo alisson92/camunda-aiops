@@ -10,7 +10,8 @@
         "severity": "warning",
         "component": "node",
         "team": "platform",
-        "node": "kind-worker"
+        "node": "kind-worker",
+        "agentia": "true"
       },
       "annotations": {
         "summary": "Nó kind-worker com padrão de scheduling alterado",

@@ -49,6 +49,7 @@ spec:
             team: platform
             component: zeebe
             etapa: "1"
+            agentia: "true"
           annotations:
             summary: "Zeebe {{ $labels.pod }} — heap (Old Gen) projetada acima de 85% em 15min"
             description: |
@@ -74,6 +75,7 @@ spec:
             team: platform
             component: zeebe
             etapa: "1"
+            agentia: "true"
           annotations:
             summary: "Zeebe backpressure em aceleração — {{ $labels.pod }}"
             description: |
@@ -112,6 +114,7 @@ spec:
             team: platform
             component: camunda
             etapa: "1"
+            agentia: "true"
           annotations:
             summary: "Namespace camunda — memória projetada acima de 6GB em 30min"
             description: |

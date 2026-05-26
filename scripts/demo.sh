@@ -157,37 +157,9 @@ ensure_ollama() {
 
 # ── Gerenciamento do agente ───────────────────────────────────────────────────
 
-check_filter_keywords() {
-    local env_file="${PROJECT_DIR}/agent/.env"
-    local keywords
-    keywords=$(grep -E "^ALERT_FILTER_KEYWORDS=" "$env_file" 2>/dev/null \
-        | cut -d= -f2- | tr -d '"' || echo "")
-
-    if [[ -z "$keywords" ]]; then
-        log_ok "ALERT_FILTER_KEYWORDS: usando default (Zeebe,Camunda,Kube,Elasticsearch)"
-        return
-    fi
-
-    log_info "ALERT_FILTER_KEYWORDS definido em agent/.env: ${keywords}"
-
-    local missing=""
-    for kw in "Kube" "Elasticsearch"; do
-        if ! echo "$keywords" | grep -qi "$kw"; then
-            missing="${missing} ${kw}"
-        fi
-    done
-
-    if [[ -n "$missing" ]]; then
-        log_warn "Keywords ausentes em ALERT_FILTER_KEYWORDS:${missing}"
-        log_warn "Alertas com esses prefixos serão filtrados e NÃO chegarão ao Teams."
-        log_info "Corrija em agent/.env: ALERT_FILTER_KEYWORDS=Zeebe,Camunda,Kube,Elasticsearch"
-        log_info "Depois reinicie o agente para a mudança ter efeito."
-    fi
-}
-
 ensure_agent() {
     # Demo sempre reinicia o agente para garantir que o código e a configuração
-    # mais recentes (inclusive ALERT_FILTER_KEYWORDS) estejam em uso.
+    # mais recentes estejam em uso.
     if curl -sf "http://localhost:${AGENT_PORT}/health" -o /dev/null 2>/dev/null; then
         log_warn "Agente rodando na porta ${AGENT_PORT} — reiniciando para carregar código e config atuais."
         lsof -ti:"${AGENT_PORT}" | xargs kill -9 2>/dev/null || true
@@ -402,10 +374,10 @@ print(json.dumps(data))
             log_ok "HTTP ${http_code} — ${queued} alerta(s) enfileirado(s) para análise"
             log_info "Processando em background → aguarde o card no Microsoft Teams"
         elif [[ "${queued}" -eq 0 ]]; then
-            # Alerta filtrado por ALERT_FILTER_KEYWORDS ou deduplicado
+            # Alerta filtrado (sem label agentia=true) ou deduplicado
             log_warn "HTTP ${http_code} — nenhum alerta processado (filtrado ou deduplicado)"
             [[ -n "${msg}" ]] && log_info "${msg}"
-            log_info "Verifique ALERT_FILTER_KEYWORDS em agent/.env"
+            log_info "Verifique se o alerta tem a label agentia=true na PrometheusRule"
         elif [[ "${analyses_count}" -gt 0 ]]; then
             # Backward compat: agente antigo síncrono (campo 'analyses')
             log_ok "HTTP ${http_code} — webhook processado"
@@ -490,7 +462,6 @@ if [[ "${DRY_RUN}" != "true" ]]; then
     log_step "Verificando pré-requisitos"
     check_venv
     check_env_file
-    check_filter_keywords
 
     log_step "Ollama (LLM local)"
     ensure_ollama

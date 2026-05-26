@@ -16,7 +16,6 @@ from datetime import UTC, datetime, timedelta, timezone
 import httpx
 from config import (
     AGENT_PUBLIC_URL,
-    ALERT_FILTER_KEYWORDS,
     ALERTMANAGER_URL,
     DEDUP_TTL_SECONDS,
     setup_logging,
@@ -217,8 +216,8 @@ async def alertmanager_webhook(request: Request, background_tasks: BackgroundTas
         logger.info("[%s] Alerta recebido: %s | status: %s | labels: %s",
                     alert_id, alert_name, status, json.dumps(labels))
 
-        if not any(kw in alert_name for kw in ALERT_FILTER_KEYWORDS):
-            logger.debug("[%s] Alerta %s ignorado (fora do escopo)", alert_id, alert_name)
+        if labels.get("agentia") != "true":
+            logger.debug("[%s] Alerta %s ignorado (sem label agentia=true)", alert_id, alert_name)
             ALERTS_FILTERED.inc()
             continue
 

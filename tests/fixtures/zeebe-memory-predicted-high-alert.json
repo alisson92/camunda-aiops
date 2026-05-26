@@ -8,7 +8,8 @@
         "alertname": "ZeebeMemoryPredictedHigh",
         "namespace": "camunda",
         "pod": "camunda-zeebe-0",
-        "severity": "warning"
+        "severity": "warning",
+        "agentia": "true"
       },
       "annotations": {
         "summary": "Zeebe JVM heap projetado acima de 600MB em 30min",

@@ -13,7 +13,8 @@
         "pod": "camunda-zeebe-0",
         "node": "kind-worker",
         "condition": "MemoryPressure",
-        "status": "True"
+        "status": "True",
+        "agentia": "true"
       },
       "annotations": {
         "summary": "Pod camunda/camunda-zeebe-0 no nó kind-worker com condição MemoryPressure=True",

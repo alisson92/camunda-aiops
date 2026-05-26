@@ -45,6 +45,7 @@ spec:
             team: platform
             component: zeebe-gateway
             etapa: "1"
+            agentia: "true"
           annotations:
             summary: "Zeebe Gateway {{ $labels.pod }} — latência p99 acima de 2s"
             description: |

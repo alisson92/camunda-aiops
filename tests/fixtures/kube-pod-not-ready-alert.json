@@ -11,7 +11,8 @@
         "component": "pod",
         "team": "platform",
         "pod": "camunda-zeebe-0",
-        "created_by_kind": "StatefulSet"
+        "created_by_kind": "StatefulSet",
+        "agentia": "true"
       },
       "annotations": {
         "summary": "Pod camunda/camunda-zeebe-0 não está Ready",

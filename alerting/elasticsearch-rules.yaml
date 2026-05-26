@@ -32,6 +32,7 @@ spec:
             severity: critical
             team: platform
             component: elasticsearch
+            agentia: "true"
           annotations:
             summary: "Cluster Elasticsearch {{ $labels.cluster }} em status CRITICAL (red)"
             description: |
@@ -58,6 +59,7 @@ spec:
             severity: warning
             team: platform
             component: elasticsearch
+            agentia: "true"
           annotations:
             summary: "Cluster Elasticsearch {{ $labels.cluster }} em status WARNING (yellow)"
             description: |
@@ -84,6 +86,7 @@ spec:
             severity: warning
             team: platform
             component: elasticsearch
+            agentia: "true"
           annotations:
             summary: "Elasticsearch {{ $labels.cluster }} com shards não alocados"
             description: |

@@ -33,6 +33,7 @@ spec:
             severity: critical
             team: platform
             component: storage
+            agentia: "true"
           annotations:
             summary: "PersistentVolume {{ $labels.persistentvolume }} em fase de erro: {{ $labels.phase }}"
             description: |
@@ -62,6 +63,7 @@ spec:
             severity: warning
             team: platform
             component: pod
+            agentia: "true"
           annotations:
             summary: "StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} com generation divergente"
             description: |
@@ -99,6 +101,7 @@ spec:
             severity: warning
             team: platform
             component: pod
+            agentia: "true"
           annotations:
             summary: "StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} com rollout incompleto"
             description: |

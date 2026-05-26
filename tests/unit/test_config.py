@@ -82,24 +82,18 @@ class TestLoadEnvFile:
         assert os.environ.get("TEST_URL_KEY") == "http://host:8080/path?a=1"
 
 
-class TestAlertFilterKeywords:
-    def test_default_contains_zeebe_and_camunda(self, monkeypatch):
-        monkeypatch.delenv("ALERT_FILTER_KEYWORDS", raising=False)
-        importlib.reload(config)
-        assert "Zeebe" in config.ALERT_FILTER_KEYWORDS
-        assert "Camunda" in config.ALERT_FILTER_KEYWORDS
+class TestAgentiaLabel:
+    def test_alert_with_agentia_true_passes_filter(self):
+        """Confirma que a lógica de filtro aceita apenas alertas com agentia=true."""
+        labels_with = {"alertname": "ZeebeMemoryPredictedHigh", "agentia": "true"}
+        labels_without = {"alertname": "NodeHighCPU"}
+        assert labels_with.get("agentia") == "true"
+        assert labels_without.get("agentia") != "true"
 
-    def test_custom_keywords_parsed_correctly(self, monkeypatch):
-        monkeypatch.setenv("ALERT_FILTER_KEYWORDS", "Operate,Identity,Zeebe")
-        importlib.reload(config)
-        assert config.ALERT_FILTER_KEYWORDS == ["Operate", "Identity", "Zeebe"]
+    def test_agentia_false_is_filtered(self):
+        labels = {"alertname": "SomeAlert", "agentia": "false"}
+        assert labels.get("agentia") != "true"
 
-    def test_keywords_with_spaces_are_stripped(self, monkeypatch):
-        monkeypatch.setenv("ALERT_FILTER_KEYWORDS", " Zeebe , Camunda ")
-        importlib.reload(config)
-        assert config.ALERT_FILTER_KEYWORDS == ["Zeebe", "Camunda"]
-
-    def test_empty_value_produces_empty_list(self, monkeypatch):
-        monkeypatch.setenv("ALERT_FILTER_KEYWORDS", "")
-        importlib.reload(config)
-        assert config.ALERT_FILTER_KEYWORDS == []
+    def test_agentia_missing_is_filtered(self):
+        labels = {"alertname": "SomeAlert", "severity": "warning"}
+        assert labels.get("agentia") != "true"

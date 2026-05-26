@@ -8,7 +8,8 @@
         "alertname": "ZeebeBackpressureGrowing",
         "namespace": "camunda",
         "pod": "camunda-zeebe-gateway-0",
-        "severity": "critical"
+        "severity": "critical",
+        "agentia": "true"
       },
       "annotations": {
         "summary": "Zeebe backpressure crescendo — derivada positiva por 3min",

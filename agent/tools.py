@@ -7,7 +7,7 @@ import logging
 import time as _time
 
 import httpx
-from config import ALERT_FILTER_KEYWORDS, PROMETHEUS_URL
+from config import PROMETHEUS_URL
 
 logger = logging.getLogger(__name__)
 
@@ -101,9 +101,7 @@ def get_alert_rules() -> dict:
         camunda_rules = []
         for group in data["data"]["groups"]:
             for rule in group["rules"]:
-                if rule.get("type") == "alerting" and any(
-                    kw in rule["name"] for kw in ALERT_FILTER_KEYWORDS
-                ):
+                if rule.get("type") == "alerting" and rule.get("labels", {}).get("agentia") == "true":
                     camunda_rules.append({
                         "name": rule["name"],
                         "state": rule.get("state"),

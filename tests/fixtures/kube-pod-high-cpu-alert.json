@@ -11,7 +11,8 @@
         "component": "pod",
         "team": "platform",
         "pod": "camunda-zeebe-0",
-        "container": "zeebe"
+        "container": "zeebe",
+        "agentia": "true"
       },
       "annotations": {
         "summary": "Pod camunda/camunda-zeebe-0 com CPU > 80% do limit",

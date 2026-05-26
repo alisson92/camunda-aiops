@@ -8,6 +8,20 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Filtro de alertas migrado de `ALERT_FILTER_KEYWORDS` (heurística por nome) para label `agentia: "true"` nas PrometheusRules — controle explícito e por alerta de quais serão processados pelo agente; remover a label de um alerta específico desabilita o processamento sem alterar código ou variáveis de ambiente
+- `agent/config.py`: remove `ALERT_FILTER_KEYWORDS` — configuração não é mais necessária
+- `agent/webhook_receiver.py`: filtro substituído por `labels.get("agentia") != "true"`
+- `agent/tools.py`: `get_alert_rules()` filtra regras por `labels.agentia == "true"` em vez de keyword no nome
+- `.env.example`: remove seção `ALERT_FILTER_KEYWORDS`
+- `scripts/demo.sh`: remove `check_filter_keywords()` e todas as referências à variável removida
+- `alerting/*.yaml`: `agentia: "true"` adicionado em todos os 23 alertas (camunda-forecasting, camunda-latency, camunda-storage, elasticsearch, kubernetes-camunda-ns, kubernetes-node, kubernetes-pod)
+- `tests/fixtures/*.json`: todos os 24 fixtures atualizados com `agentia: "true"` nos labels
+- `tests/unit/test_webhook_receiver.py`: payloads atualizados; `test_non_camunda_alert_is_filtered` renomeado para `test_alert_without_agentia_label_is_filtered`
+- `tests/unit/test_config.py`: `TestAlertFilterKeywords` substituído por `TestAgentiaLabel`
+- `tests/unit/test_tools.py`: `TestGetAlertRules` atualizado para usar `agentia: "true"` nas regras esperadas
+- 223 testes, 100% cobertura (636 statements)
+
 ### Fixed (pós 0.14.0 — correções demo e dashboard)
 - `scripts/demo.sh`: `ensure_agent()` reutilizava agente antigo sem reiniciar — alertas `Kube*` e `Elasticsearch*` continuavam filtrados porque o processo rodava com código pré-fix; demo agora sempre reinicia o agente para garantir código e configuração atuais
 - `scripts/demo.sh`: verificação `http_code == "200"` não aceitava `202` — todos os cenários retornavam "erro no webhook" com o agente atualizado; corrigido para aceitar qualquer `2xx`

@@ -118,7 +118,7 @@ class TestWebhookEndpoint:
         assert resp.status_code == 200
         assert resp.json()["queued"] == 0
 
-    def test_non_camunda_alert_is_filtered(self, client):
+    def test_alert_without_agentia_label_is_filtered(self, client):
         tc, mock_agent, *_ = client
         payload = {
             "alerts": [
@@ -146,6 +146,7 @@ class TestWebhookEndpoint:
                         "alertname": "ZeebeMemoryPredictedHigh",
                         "namespace": "camunda",
                         "severity": "critical",
+                        "agentia": "true",
                     },
                     "annotations": {"summary": "Zeebe heap alto"},
                     "startsAt": "2026-05-24T10:00:00Z",
@@ -165,7 +166,7 @@ class TestWebhookEndpoint:
             "alerts": [
                 {
                     "status": "firing",
-                    "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical"},
+                    "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical", "agentia": "true"},
                     "annotations": {},
                     "startsAt": "2026-05-24T10:00:00Z",
                     "endsAt": "0001-01-01T00:00:00Z",
@@ -183,7 +184,7 @@ class TestWebhookEndpoint:
             "alerts": [
                 {
                     "status": "firing",
-                    "labels": {"alertname": "CamundaNamespaceMemoryPressure", "severity": "info"},
+                    "labels": {"alertname": "CamundaNamespaceMemoryPressure", "severity": "info", "agentia": "true"},
                     "annotations": {},
                     "startsAt": "2026-05-24T10:00:00Z",
                     "endsAt": "0001-01-01T00:00:00Z",
@@ -201,7 +202,7 @@ class TestWebhookEndpoint:
             "alerts": [
                 {
                     "status": "firing",
-                    "labels": {"alertname": "ZeebeBackpressureGrowing", "severity": "warning"},
+                    "labels": {"alertname": "ZeebeBackpressureGrowing", "severity": "warning", "agentia": "true"},
                     "annotations": {},
                     "startsAt": "2026-05-24T10:00:00Z",
                     "endsAt": "0001-01-01T00:00:00Z",
@@ -226,7 +227,7 @@ class TestWebhookEndpoint:
             "alerts": [
                 {
                     "status": "firing",
-                    "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical"},
+                    "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical", "agentia": "true"},
                     "annotations": {},
                     "startsAt": "2026-05-24T10:00:00Z",
                     "endsAt": "0001-01-01T00:00:00Z",
@@ -242,7 +243,7 @@ class TestWebhookEndpoint:
             "alerts": [
                 {
                     "status": "resolved",
-                    "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical"},
+                    "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical", "agentia": "true"},
                     "annotations": {},
                     "startsAt": "2026-05-24T10:00:00Z",
                     "endsAt": "2026-05-24T10:30:00Z",
@@ -270,7 +271,7 @@ class TestWebhookEndpoint:
                 "alerts": [
                     {
                         "status": "firing",
-                        "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical"},
+                        "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical", "agentia": "true"},
                         "annotations": {},
                         "startsAt": "2026-05-24T10:00:00Z",
                         "endsAt": "0001-01-01T00:00:00Z",
@@ -290,7 +291,7 @@ class TestWebhookEndpoint:
 class TestDeduplication:
     _ALERT = {
         "status": "firing",
-        "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "warning"},
+        "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "warning", "agentia": "true"},
         "annotations": {},
         "startsAt": "2026-01-01T00:00:00Z",
         "endsAt": "0001-01-01T00:00:00Z",
@@ -372,7 +373,7 @@ class TestRunbookEndpoint:
         "alerts": [
             {
                 "status": "firing",
-                "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical"},
+                "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical", "agentia": "true"},
                 "annotations": {},
                 "startsAt": "2026-05-24T10:00:00Z",
                 "endsAt": "0001-01-01T00:00:00Z",
@@ -423,7 +424,7 @@ class TestRunbookEndpoint:
             "alerts": [
                 {
                     "status": "resolved",
-                    "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical"},
+                    "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical", "agentia": "true"},
                     "annotations": {},
                     "startsAt": "2026-05-24T10:00:00Z",
                     "endsAt": "2026-05-24T10:30:00Z",
@@ -444,7 +445,7 @@ class TestRunbookByAlertEndpoint:
         "alerts": [
             {
                 "status": "firing",
-                "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical"},
+                "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "critical", "agentia": "true"},
                 "annotations": {},
                 "startsAt": "2026-05-24T10:00:00Z",
                 "endsAt": "0001-01-01T00:00:00Z",

@@ -10,7 +10,8 @@
         "severity": "warning",
         "component": "pod",
         "team": "platform",
-        "deployment": "camunda-operate"
+        "deployment": "camunda-operate",
+        "agentia": "true"
       },
       "annotations": {
         "summary": "Deployment camunda/camunda-operate com réplicas divergentes",

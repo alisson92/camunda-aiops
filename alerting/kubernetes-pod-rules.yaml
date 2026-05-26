@@ -38,6 +38,7 @@ spec:
             severity: warning
             team: platform
             component: pod
+            agentia: "true"
           annotations:
             summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} não está Ready"
             description: |
@@ -65,6 +66,7 @@ spec:
             severity: warning
             team: platform
             component: pod
+            agentia: "true"
           annotations:
             summary: "StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} com réplicas divergentes"
             description: |
@@ -88,6 +90,7 @@ spec:
             severity: warning
             team: platform
             component: pod
+            agentia: "true"
           annotations:
             summary: "Deployment {{ $labels.namespace }}/{{ $labels.deployment }} com réplicas divergentes"
             description: |
@@ -130,6 +133,7 @@ spec:
             severity: warning
             team: platform
             component: pod
+            agentia: "true"
           annotations:
             summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} com memória > 80% do limit"
             description: |
@@ -164,6 +168,7 @@ spec:
             severity: critical
             team: platform
             component: pod
+            agentia: "true"
           annotations:
             summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} com memória > 90% do limit — risco de OOM"
             description: |
@@ -188,6 +193,7 @@ spec:
             severity: warning
             team: platform
             component: pod
+            agentia: "true"
           annotations:
             summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} em CrashLoopBackOff"
             description: |
@@ -225,6 +231,7 @@ spec:
             severity: warning
             team: platform
             component: pod
+            agentia: "true"
           annotations:
             summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} com CPU > 80% do limit"
             description: |
@@ -259,6 +266,7 @@ spec:
             severity: critical
             team: platform
             component: pod
+            agentia: "true"
           annotations:
             summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} com CPU > 90% do limit"
             description: |
@@ -284,6 +292,7 @@ spec:
             severity: warning
             team: platform
             component: pod
+            agentia: "true"
           annotations:
             summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} com mais de 3 restarts em 2h"
             description: |
@@ -314,6 +323,7 @@ spec:
             severity: critical
             team: platform
             component: pod
+            agentia: "true"
           annotations:
             summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} sofreu OOM kill"
             description: |

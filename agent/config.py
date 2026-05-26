@@ -47,12 +47,6 @@ GRAFANA_DASHBOARD_UID: str = os.environ.get("GRAFANA_DASHBOARD_UID", "camunda-lo
 # --- Agente ---
 AGENT_PUBLIC_URL: str = os.environ.get("AGENT_PUBLIC_URL", "http://localhost:5001").rstrip("/")
 
-# Palavras-chave que determinam quais alertas o agente processa.
-# Alertas cujo alertname não contiver nenhuma dessas palavras são ignorados.
-# Separadas por vírgula: ALERT_FILTER_KEYWORDS=Zeebe,Camunda,Operate
-_raw_keywords = os.environ.get("ALERT_FILTER_KEYWORDS", "Zeebe,Camunda,Kube,Elasticsearch")
-ALERT_FILTER_KEYWORDS: list[str] = [kw.strip() for kw in _raw_keywords.split(",") if kw.strip()]
-
 # Janela de deduplicação: alertas com o mesmo fingerprint dentro deste intervalo
 # são ignorados. Deve ser menor que o repeatInterval do Alertmanager (padrão: 4h).
 DEDUP_TTL_SECONDS: int = int(os.environ.get("DEDUP_TTL_SECONDS", "300"))

@@ -11,7 +11,8 @@
         "component": "storage",
         "team": "platform",
         "persistentvolume": "pvc-data-camunda-zeebe-0",
-        "phase": "Failed"
+        "phase": "Failed",
+        "agentia": "true"
       },
       "annotations": {
         "summary": "PersistentVolume pvc-data-camunda-zeebe-0 em fase de erro: Failed",

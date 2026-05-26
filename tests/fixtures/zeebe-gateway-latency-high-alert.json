@@ -10,7 +10,8 @@
         "severity": "warning",
         "component": "zeebe-gateway",
         "team": "platform",
-        "pod": "camunda-zeebe-gateway-0"
+        "pod": "camunda-zeebe-gateway-0",
+        "agentia": "true"
       },
       "annotations": {
         "summary": "Zeebe Gateway camunda-zeebe-gateway-0 — latência p99 acima de 2s",

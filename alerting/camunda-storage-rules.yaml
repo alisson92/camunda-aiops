@@ -48,6 +48,7 @@ spec:
             team: platform
             component: zeebe
             etapa: "1"
+            agentia: "true"
           annotations:
             summary: "Zeebe PVC {{ $labels.persistentvolumeclaim }} — uso projetado acima de 85% em 1h"
             description: |

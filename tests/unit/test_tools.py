@@ -200,14 +200,14 @@ class TestGetAlertRules:
             },
         }
 
-    def test_returns_only_zeebe_and_camunda_rules(self):
+    def test_returns_only_rules_with_agentia_label(self):
         rules = [
             {"type": "alerting", "name": "ZeebeMemoryPredictedHigh", "state": "firing",
-             "health": "ok", "query": "expr", "labels": {}, "annotations": {}},
+             "health": "ok", "query": "expr", "labels": {"agentia": "true"}, "annotations": {}},
             {"type": "alerting", "name": "NodeHighCPU", "state": "inactive",
              "health": "ok", "query": "expr", "labels": {}, "annotations": {}},
             {"type": "alerting", "name": "CamundaNamespaceMemoryPressure", "state": "inactive",
-             "health": "ok", "query": "expr", "labels": {}, "annotations": {}},
+             "health": "ok", "query": "expr", "labels": {"agentia": "true"}, "annotations": {}},
         ]
         with patch("httpx.get", return_value=_mock_response(self._payload_with_rules(rules))):
             result = get_alert_rules()
@@ -253,7 +253,7 @@ class TestGetAlertRules:
                 "state": "firing",
                 "health": "ok",
                 "query": "deriv(zeebe_backpressure[5m]) > 0",
-                "labels": {"severity": "warning"},
+                "labels": {"severity": "warning", "agentia": "true"},
                 "annotations": {"summary": "Backpressure crescente"},
             }
         ]

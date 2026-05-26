@@ -10,7 +10,8 @@
         "severity": "critical",
         "component": "elasticsearch",
         "team": "platform",
-        "cluster": "camunda-elasticsearch"
+        "cluster": "camunda-elasticsearch",
+        "agentia": "true"
       },
       "annotations": {
         "summary": "Cluster Elasticsearch camunda-elasticsearch em status CRITICAL (red)",

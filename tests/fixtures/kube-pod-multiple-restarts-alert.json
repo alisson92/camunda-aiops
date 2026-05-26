@@ -11,7 +11,8 @@
         "component": "pod",
         "team": "platform",
         "pod": "camunda-zeebe-0",
-        "container": "zeebe"
+        "container": "zeebe",
+        "agentia": "true"
       },
       "annotations": {
         "summary": "Pod camunda/camunda-zeebe-0 com mais de 3 restarts em 2h",

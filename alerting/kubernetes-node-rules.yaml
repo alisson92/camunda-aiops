@@ -54,6 +54,7 @@ spec:
             severity: warning
             team: platform
             component: node
+            agentia: "true"
           annotations:
             summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} no nó {{ $labels.node }} com condição {{ $labels.condition }}={{ $labels.status }}"
             description: |
@@ -88,6 +89,7 @@ spec:
             severity: warning
             team: platform
             component: node
+            agentia: "true"
           annotations:
             summary: "Nó {{ $labels.node }} com padrão de scheduling alterado"
             description: |

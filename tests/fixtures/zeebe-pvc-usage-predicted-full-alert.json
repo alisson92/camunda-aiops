@@ -10,7 +10,8 @@
         "severity": "critical",
         "component": "zeebe",
         "team": "platform",
-        "persistentvolumeclaim": "data-camunda-zeebe-0"
+        "persistentvolumeclaim": "data-camunda-zeebe-0",
+        "agentia": "true"
       },
       "annotations": {
         "summary": "Zeebe PVC data-camunda-zeebe-0 — uso projetado acima de 85% em 1h",

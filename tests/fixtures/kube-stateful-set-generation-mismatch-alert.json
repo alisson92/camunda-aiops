@@ -10,7 +10,8 @@
         "severity": "warning",
         "component": "pod",
         "team": "platform",
-        "statefulset": "camunda-zeebe"
+        "statefulset": "camunda-zeebe",
+        "agentia": "true"
       },
       "annotations": {
         "summary": "StatefulSet camunda/camunda-zeebe com generation divergente",
