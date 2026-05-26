@@ -19,7 +19,7 @@ KIND_CLUSTER := camunda-platform-local
 .PHONY: run test test-integration test-e2e smoke demo lint \
         port-forward check-metrics check-pod-metrics import-dashboard load \
         cycle-test cycle-test-fast generate-fixtures \
-        build kind-load k8s-apply k8s-delete k8s-logs k8s-status \
+        build kind-load k8s-apply k8s-delete k8s-logs k8s-status deploy \
         help
 
 # ── Agente ─────────────────────────────────────────────────────────────────────
@@ -56,6 +56,25 @@ generate-fixtures: ## Gera fixtures Alertmanager a partir de alerting/*.yaml (id
 	$(PYTHON) scripts/generate-fixtures.py
 
 # ── Docker / Kubernetes ────────────────────────────────────────────────────────
+
+deploy: ## Fluxo completo: build → kind-load → apply → aguarda pod pronto → health check
+	@echo "[1/5] Build da imagem $(IMAGE_NAME):$(IMAGE_TAG)..."
+	@docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .
+	@echo "[2/5] Carregando imagem no Kind ($(KIND_CLUSTER))..."
+	@kind load docker-image $(IMAGE_NAME):$(IMAGE_TAG) --name $(KIND_CLUSTER)
+	@echo "[3/5] Verificando Secret..."
+	@kubectl get secret camunda-aiops-secret -n camunda > /dev/null 2>&1 || \
+	  (echo "ERRO: Secret 'camunda-aiops-secret' não encontrado." && \
+	   echo "      Execute antes: kubectl apply -f deploy/secret.yaml -n camunda" && exit 1)
+	@echo "[3/5] Aplicando manifests (PVC, Deployment, Service, CronJob)..."
+	@kubectl apply -k deploy/
+	@echo "[4/5] Forçando rollout para garantir nova imagem..."
+	@kubectl rollout restart deployment/camunda-aiops-agent -n camunda
+	@kubectl rollout status  deployment/camunda-aiops-agent -n camunda --timeout=120s
+	@echo "[5/5] Health check no NodePort (localhost:30501)..."
+	@sleep 2
+	@curl -sf http://localhost:30501/health | python3 -m json.tool
+	@echo "Deploy concluído. Webhook disponível em http://localhost:30501/webhook"
 
 build: ## Build da imagem Docker do agente
 	docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .
