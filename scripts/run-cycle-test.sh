@@ -436,7 +436,7 @@ fi
 # =============================================================================
 log_step "Passo 5 — Fast check: fixture → agente → Teams"
 
-FIXTURE="${PROJECT_DIR}/tests/fixtures/zeebe-memory-alert.json"
+FIXTURE="${PROJECT_DIR}/tests/fixtures/zeebe-memory-predicted-high-alert.json"
 
 if ! $AGENT_UP; then
   log_warn "Agente não está disponível — pulando fast check."
@@ -528,7 +528,7 @@ echo ""
 echo -e "  ${BOLD}Enviar alerta manualmente:${NC}"
 echo -e "    ${CYAN}curl -X POST http://localhost:5001/webhook \\"
 echo -e "      -H 'Content-Type: application/json' \\"
-echo -e "      -d @${PROJECT_DIR}/tests/fixtures/zeebe-memory-alert.json${NC}"
+echo -e "      -d @${PROJECT_DIR}/tests/fixtures/zeebe-memory-predicted-high-alert.json${NC}"
 echo ""
 echo -e "  ${BOLD}Log completo do agente:${NC}"
 echo -e "    ${CYAN}tail -f ${AGENT_LOG}${NC}"

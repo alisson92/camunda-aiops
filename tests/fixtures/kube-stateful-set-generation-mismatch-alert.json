@@ -1,0 +1,37 @@
+{
+  "receiver": "camunda-aiops-webhook",
+  "status": "firing",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "KubeStatefulSetGenerationMismatch",
+        "namespace": "camunda",
+        "severity": "warning",
+        "component": "pod",
+        "team": "platform"
+      },
+      "annotations": {
+        "summary": "StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} com generation divergente",
+        "description": "StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} tem generation\ndivergente do observado pelo controller há mais de 10 minutos.\nIndica rollout travado ou controller com problema.\nVerificar: kubectl rollout status statefulset/{{ $labels.statefulset }} -n {{ $labels.namespace }}\n",
+        "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/KubeStatefulSetGenerationMismatch"
+      },
+      "startsAt": "2026-01-01T00:00:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://localhost:9090/graph?g0.expr=KubeStatefulSetGenerationMismatch"
+    }
+  ],
+  "groupLabels": {
+    "alertname": "KubeStatefulSetGenerationMismatch"
+  },
+  "commonLabels": {
+    "alertname": "KubeStatefulSetGenerationMismatch",
+    "severity": "warning"
+  },
+  "commonAnnotations": {
+    "summary": "StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} com generation divergente"
+  },
+  "externalURL": "http://localhost:9093",
+  "version": "4",
+  "groupKey": "{}/{alertname=~\".*\"}:{alertname=\"KubeStatefulSetGenerationMismatch\"}"
+}

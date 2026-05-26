@@ -1,0 +1,37 @@
+{
+  "receiver": "camunda-aiops-webhook",
+  "status": "firing",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "KubePodMultipleRestarts",
+        "namespace": "camunda",
+        "severity": "warning",
+        "component": "pod",
+        "team": "platform"
+      },
+      "annotations": {
+        "summary": "Pod {{ $labels.namespace }}/{{ $labels.pod }} com mais de 3 restarts em 2h",
+        "description": "Container {{ $labels.container }} no pod {{ $labels.namespace }}/{{ $labels.pod }}\nreiniciou {{ $value | humanize }} vezes nas últimas 2 horas.\nVerificar: logs, eventos e condição do nó.\n",
+        "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/KubePodMultipleRestarts"
+      },
+      "startsAt": "2026-01-01T00:00:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://localhost:9090/graph?g0.expr=KubePodMultipleRestarts"
+    }
+  ],
+  "groupLabels": {
+    "alertname": "KubePodMultipleRestarts"
+  },
+  "commonLabels": {
+    "alertname": "KubePodMultipleRestarts",
+    "severity": "warning"
+  },
+  "commonAnnotations": {
+    "summary": "Pod {{ $labels.namespace }}/{{ $labels.pod }} com mais de 3 restarts em 2h"
+  },
+  "externalURL": "http://localhost:9093",
+  "version": "4",
+  "groupKey": "{}/{alertname=~\".*\"}:{alertname=\"KubePodMultipleRestarts\"}"
+}

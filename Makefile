@@ -14,7 +14,7 @@ RUFF    := .venv/bin/ruff
 
 .PHONY: run test test-integration test-e2e smoke demo lint \
         port-forward check-metrics check-pod-metrics import-dashboard load \
-        cycle-test cycle-test-fast help
+        cycle-test cycle-test-fast generate-fixtures help
 
 # ── Agente ─────────────────────────────────────────────────────────────────────
 
@@ -40,11 +40,14 @@ smoke: ## Envia os 3 alertas de teste para o Teams; inicia port-forwards se Kind
 smoke-%: ## Envia um cenário específico: make smoke-critical | smoke-warning | smoke-info | smoke-resolved
 	./scripts/smoke.sh $*
 
-demo: ## Demo completa: autossuficiente — inicia Ollama + agente, injeta 4 cenários, encerra tudo
+demo: ## Demo completa: gera fixtures, itera todos os alertas, encerra tudo
 	./scripts/demo.sh
 
 demo-%: ## Demo de um cenário específico: make demo-zeebe | demo-namespace | demo-backpressure | demo-resolved
 	./scripts/demo.sh --scenario $*
+
+generate-fixtures: ## Gera fixtures Alertmanager a partir de alerting/*.yaml (idempotente)
+	$(PYTHON) scripts/generate-fixtures.py
 
 # ── Qualidade ──────────────────────────────────────────────────────────────────
 

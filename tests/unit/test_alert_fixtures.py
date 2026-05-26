@@ -11,10 +11,9 @@ from pathlib import Path
 
 FIXTURES_DIR = Path(__file__).parent.parent / "fixtures"
 
-ALERT_FIXTURES = [
-    "zeebe-memory-alert.json",
-    "namespace-memory-alert.json",
-]
+# Carrega dinamicamente todos os fixtures — novos arquivos gerados por
+# generate-fixtures.py são validados automaticamente sem editar este arquivo.
+ALERT_FIXTURES = [p.name for p in sorted(FIXTURES_DIR.glob("*.json"))]
 
 REQUIRED_TOP_LEVEL_KEYS = {"receiver", "status", "alerts", "version"}
 REQUIRED_ALERT_KEYS = {"status", "labels", "annotations", "startsAt", "endsAt"}

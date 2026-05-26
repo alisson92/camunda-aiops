@@ -1,0 +1,37 @@
+{
+  "receiver": "camunda-aiops-webhook",
+  "status": "firing",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "ElasticsearchClusterHealthWarning",
+        "namespace": "camunda",
+        "severity": "warning",
+        "component": "elasticsearch",
+        "team": "platform"
+      },
+      "annotations": {
+        "summary": "Cluster Elasticsearch {{ $labels.cluster }} em status WARNING (yellow)",
+        "description": "O cluster Elasticsearch {{ $labels.cluster }} no namespace {{ $labels.namespace }}\nestá com status amarelo (yellow) por mais de 5 minutos.\nStatus yellow = réplicas não alocadas — resiliência reduzida, sem perda de dados.\nVerificar: capacidade do cluster, nós adicionados recentemente, logs do Elasticsearch.\n",
+        "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/ElasticsearchClusterHealthWarning"
+      },
+      "startsAt": "2026-01-01T00:00:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://localhost:9090/graph?g0.expr=ElasticsearchClusterHealthWarning"
+    }
+  ],
+  "groupLabels": {
+    "alertname": "ElasticsearchClusterHealthWarning"
+  },
+  "commonLabels": {
+    "alertname": "ElasticsearchClusterHealthWarning",
+    "severity": "warning"
+  },
+  "commonAnnotations": {
+    "summary": "Cluster Elasticsearch {{ $labels.cluster }} em status WARNING (yellow)"
+  },
+  "externalURL": "http://localhost:9093",
+  "version": "4",
+  "groupKey": "{}/{alertname=~\".*\"}:{alertname=\"ElasticsearchClusterHealthWarning\"}"
+}

@@ -1,0 +1,37 @@
+{
+  "receiver": "camunda-aiops-webhook",
+  "status": "firing",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "KubeNodeConditionAffectedPods",
+        "namespace": "camunda",
+        "severity": "warning",
+        "component": "node",
+        "team": "platform"
+      },
+      "annotations": {
+        "summary": "Pod {{ $labels.namespace }}/{{ $labels.pod }} no nó {{ $labels.node }} com condição {{ $labels.condition }}={{ $labels.status }}",
+        "description": "Pod {{ $labels.namespace }}/{{ $labels.pod }} está rodando em nó\ncom condição adversa {{ $labels.condition }}={{ $labels.status }}\ndetectada nos últimos 5 minutos.\n",
+        "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/KubeNodeConditionAffectedPods"
+      },
+      "startsAt": "2026-01-01T00:00:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://localhost:9090/graph?g0.expr=KubeNodeConditionAffectedPods"
+    }
+  ],
+  "groupLabels": {
+    "alertname": "KubeNodeConditionAffectedPods"
+  },
+  "commonLabels": {
+    "alertname": "KubeNodeConditionAffectedPods",
+    "severity": "warning"
+  },
+  "commonAnnotations": {
+    "summary": "Pod {{ $labels.namespace }}/{{ $labels.pod }} no nó {{ $labels.node }} com condição {{ $labels.condition }}={{ $labels.status }}"
+  },
+  "externalURL": "http://localhost:9093",
+  "version": "4",
+  "groupKey": "{}/{alertname=~\".*\"}:{alertname=\"KubeNodeConditionAffectedPods\"}"
+}

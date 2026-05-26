@@ -1,0 +1,37 @@
+{
+  "receiver": "camunda-aiops-webhook",
+  "status": "firing",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "KubeNewNode",
+        "namespace": "camunda",
+        "severity": "warning",
+        "component": "node",
+        "team": "platform"
+      },
+      "annotations": {
+        "summary": "Nó {{ $labels.node }} com padrão de scheduling alterado",
+        "description": "Nó {{ $labels.node }} tinha pods há 5 minutos mas não os tem agora\ne não consta em kube_node_info. Pode indicar nó efêmero ou eviction em massa.\n",
+        "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/KubeNewNode"
+      },
+      "startsAt": "2026-01-01T00:00:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://localhost:9090/graph?g0.expr=KubeNewNode"
+    }
+  ],
+  "groupLabels": {
+    "alertname": "KubeNewNode"
+  },
+  "commonLabels": {
+    "alertname": "KubeNewNode",
+    "severity": "warning"
+  },
+  "commonAnnotations": {
+    "summary": "Nó {{ $labels.node }} com padrão de scheduling alterado"
+  },
+  "externalURL": "http://localhost:9093",
+  "version": "4",
+  "groupKey": "{}/{alertname=~\".*\"}:{alertname=\"KubeNewNode\"}"
+}

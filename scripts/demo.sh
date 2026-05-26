@@ -2,11 +2,12 @@
 # demo.sh — ciclo de demo do agente AIOps para apresentação ao time
 #
 # Totalmente autossuficiente: verifica pré-requisitos, inicia Ollama e o agente
-# automaticamente se necessário, executa os cenários e encerra tudo ao final.
+# automaticamente se necessário, gera fixtures faltantes a partir de alerting/*.yaml,
+# executa os cenários e encerra tudo ao final.
 # Não requer o cluster Kind — apenas Ollama instalado e agent/.env configurado.
 #
 # Uso:
-#   ./scripts/demo.sh                      # ciclo completo (4 cenários)
+#   ./scripts/demo.sh                      # itera todos os fixtures *-alert.json
 #   ./scripts/demo.sh --scenario zeebe     # apenas ZeebeMemoryPredictedHigh
 #   ./scripts/demo.sh --scenario backpressure  # critical — maior impacto
 #   ./scripts/demo.sh --list               # lista os cenários disponíveis
@@ -281,6 +282,31 @@ ensure_dashboards() {
     fi
 }
 
+# ── Geração de fixtures a partir de alerting/*.yaml ──────────────────────────
+
+ensure_fixtures() {
+    local python="${PROJECT_DIR}/.venv/bin/python3"
+
+    if [[ ! -x "$python" ]]; then
+        log_warn "venv Python não encontrado — geração de fixtures ignorada."
+        return
+    fi
+
+    local output new_count
+    if output=$("$python" "${SCRIPT_DIR}/generate-fixtures.py" 2>&1); then
+        new_count=$(echo "$output" | grep -c "✔ gerado:" || true)
+        if [[ "$new_count" -gt 0 ]]; then
+            log_ok "Fixtures gerados: ${new_count} novo(s)"
+            echo "$output" | grep "✔ gerado:" | while IFS= read -r line; do log_info "$line"; done
+        else
+            log_ok "Fixtures já sincronizados com alerting/*.yaml"
+        fi
+    else
+        log_warn "Geração de fixtures falhou — usando apenas os existentes."
+        echo "$output" | while IFS= read -r line; do log_warn "$line"; done
+    fi
+}
+
 # ── Envio de cenário ──────────────────────────────────────────────────────────
 
 send_scenario() {
@@ -361,12 +387,18 @@ list_scenarios() {
     echo ""
     echo -e "${BOLD}Cenários disponíveis:${RESET}"
     echo ""
-    echo "  zeebe        ZeebeMemoryPredictedHigh        (warning)  — heap JVM crescendo"
-    echo "  namespace    CamundaNamespaceMemoryPressure  (warning)  — namespace > 6 GB"
-    echo "  backpressure ZeebeBackpressureGrowing        (critical) — gateway saturado"
-    echo "  resolved     ZeebeMemoryPredictedHigh        (resolved) — alerta encerrado"
+    echo "  Individuais (curados):"
+    echo "    zeebe        ZeebeMemoryPredictedHigh       (warning)  — heap JVM crescendo"
+    echo "    namespace    CamundaNamespaceMemoryPressure (warning)  — namespace > 6 GB"
+    echo "    backpressure ZeebeBackpressureGrowing       (critical) — gateway saturado"
+    echo "    resolved     ZeebeMemoryPredictedHigh       (resolved) — alerta encerrado"
     echo ""
-    echo "  all          Todos os cenários acima em sequência (padrão)"
+    echo "  all — itera todos os fixtures tests/fixtures/*-alert.json (padrão)"
+    if compgen -G "${FIXTURES_DIR}/*-alert.json" > /dev/null 2>&1; then
+        local count
+        count=$(find "${FIXTURES_DIR}" -name "*-alert.json" | wc -l | tr -d ' ')
+        echo "        (${count} fixture(s) disponíveis)"
+    fi
     echo ""
 }
 
@@ -418,34 +450,44 @@ if [[ "${DRY_RUN}" != "true" ]]; then
 
     log_step "Dashboards Grafana"
     ensure_dashboards
+
+    log_step "Fixtures de alertas"
+    ensure_fixtures
 fi
 
 log_step "Executando cenários"
 
 case "${SCENARIO}" in
     zeebe)
-        send_scenario "ZeebeMemoryPredictedHigh" "zeebe-memory-alert.json" "warning"
+        send_scenario "ZeebeMemoryPredictedHigh" "zeebe-memory-predicted-high-alert.json" "warning"
         ;;
     namespace)
-        send_scenario "CamundaNamespaceMemoryPressure" "namespace-memory-alert.json" "warning"
+        send_scenario "CamundaNamespaceMemoryPressure" "camunda-namespace-memory-pressure-alert.json" "warning"
         ;;
     backpressure)
-        send_scenario "ZeebeBackpressureGrowing" "zeebe-backpressure-alert.json" "critical"
+        send_scenario "ZeebeBackpressureGrowing" "zeebe-backpressure-growing-alert.json" "critical"
         ;;
     resolved)
-        send_scenario "ZeebeMemoryPredictedHigh (resolved)" "zeebe-resolved.json" "resolved"
+        send_scenario "ZeebeMemoryPredictedHigh (resolved)" "zeebe-memory-predicted-high-resolved.json" "resolved"
         ;;
     all)
-        send_scenario "ZeebeMemoryPredictedHigh" "zeebe-memory-alert.json" "warning"
-        sleep "${DELAY_BETWEEN}"
-
-        send_scenario "CamundaNamespaceMemoryPressure" "namespace-memory-alert.json" "warning"
-        sleep "${DELAY_BETWEEN}"
-
-        send_scenario "ZeebeBackpressureGrowing" "zeebe-backpressure-alert.json" "critical"
-        sleep "${DELAY_BETWEEN}"
-
-        send_scenario "ZeebeMemoryPredictedHigh (resolved)" "zeebe-resolved.json" "resolved"
+        # Itera dinamicamente todos os fixtures *-alert.json em ordem alfabética.
+        # Novos alertas adicionados via generate-fixtures.py são incluídos automaticamente.
+        while IFS= read -r fixture_path; do
+            fixture_file=$(basename "$fixture_path")
+            alertname=$(python3 -c "
+import json
+d = json.load(open('${fixture_path}'))
+print(d.get('alerts', [{}])[0].get('labels', {}).get('alertname', 'Unknown'))
+" 2>/dev/null || echo "Unknown")
+            severity=$(python3 -c "
+import json
+d = json.load(open('${fixture_path}'))
+print(d.get('alerts', [{}])[0].get('labels', {}).get('severity', 'unknown'))
+" 2>/dev/null || echo "unknown")
+            send_scenario "${alertname}" "${fixture_file}" "${severity}"
+            sleep "${DELAY_BETWEEN}"
+        done < <(find "${FIXTURES_DIR}" -name "*-alert.json" | sort)
         ;;
     *)
         log_error "Cenário desconhecido: '${SCENARIO}'"

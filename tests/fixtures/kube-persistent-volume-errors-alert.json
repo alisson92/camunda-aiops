@@ -1,0 +1,37 @@
+{
+  "receiver": "camunda-aiops-webhook",
+  "status": "firing",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "KubePersistentVolumeErrors",
+        "namespace": "camunda",
+        "severity": "critical",
+        "component": "storage",
+        "team": "platform"
+      },
+      "annotations": {
+        "summary": "PersistentVolume {{ $labels.persistentvolume }} em fase de erro: {{ $labels.phase }}",
+        "description": "PersistentVolume {{ $labels.persistentvolume }} está na fase {{ $labels.phase }}\nhá mais de 5 minutos.\nFase Failed/Lost = dados potencialmente inacessíveis.\nVerificar: kubectl describe pv {{ $labels.persistentvolume }}\n",
+        "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/KubePersistentVolumeErrors"
+      },
+      "startsAt": "2026-01-01T00:00:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://localhost:9090/graph?g0.expr=KubePersistentVolumeErrors"
+    }
+  ],
+  "groupLabels": {
+    "alertname": "KubePersistentVolumeErrors"
+  },
+  "commonLabels": {
+    "alertname": "KubePersistentVolumeErrors",
+    "severity": "critical"
+  },
+  "commonAnnotations": {
+    "summary": "PersistentVolume {{ $labels.persistentvolume }} em fase de erro: {{ $labels.phase }}"
+  },
+  "externalURL": "http://localhost:9093",
+  "version": "4",
+  "groupKey": "{}/{alertname=~\".*\"}:{alertname=\"KubePersistentVolumeErrors\"}"
+}

@@ -1,0 +1,37 @@
+{
+  "receiver": "camunda-aiops-webhook",
+  "status": "firing",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "ElasticsearchClusterHealthCritical",
+        "namespace": "camunda",
+        "severity": "critical",
+        "component": "elasticsearch",
+        "team": "platform"
+      },
+      "annotations": {
+        "summary": "Cluster Elasticsearch {{ $labels.cluster }} em status CRITICAL (red)",
+        "description": "O cluster Elasticsearch {{ $labels.cluster }} no namespace {{ $labels.namespace }}\nestá com status vermelho (red) por mais de 5 minutos.\nStatus red = um ou mais shards primários não alocados — dados inacessíveis.\nVerificar: shards não alocados, nós com problemas, logs do Elasticsearch.\n",
+        "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/ElasticsearchClusterHealthCritical"
+      },
+      "startsAt": "2026-01-01T00:00:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://localhost:9090/graph?g0.expr=ElasticsearchClusterHealthCritical"
+    }
+  ],
+  "groupLabels": {
+    "alertname": "ElasticsearchClusterHealthCritical"
+  },
+  "commonLabels": {
+    "alertname": "ElasticsearchClusterHealthCritical",
+    "severity": "critical"
+  },
+  "commonAnnotations": {
+    "summary": "Cluster Elasticsearch {{ $labels.cluster }} em status CRITICAL (red)"
+  },
+  "externalURL": "http://localhost:9093",
+  "version": "4",
+  "groupKey": "{}/{alertname=~\".*\"}:{alertname=\"ElasticsearchClusterHealthCritical\"}"
+}

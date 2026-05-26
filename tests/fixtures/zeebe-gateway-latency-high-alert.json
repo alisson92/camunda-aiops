@@ -1,0 +1,37 @@
+{
+  "receiver": "camunda-aiops-webhook",
+  "status": "firing",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "ZeebeGatewayLatencyHigh",
+        "namespace": "camunda",
+        "severity": "warning",
+        "component": "zeebe-gateway",
+        "team": "platform"
+      },
+      "annotations": {
+        "summary": "Zeebe Gateway {{ $labels.pod }} — latência p99 acima de 2s",
+        "description": "Latência p99 do Gateway: {{ $value | humanizeDuration }}.\nRequests lentos no Gateway impactam workers, Operate e Tasklist.\nInvestigue: backpressure do broker, RocksDB, CPU throttling do pod.\n",
+        "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/ZeebeGatewayLatencyHigh"
+      },
+      "startsAt": "2026-01-01T00:00:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://localhost:9090/graph?g0.expr=ZeebeGatewayLatencyHigh"
+    }
+  ],
+  "groupLabels": {
+    "alertname": "ZeebeGatewayLatencyHigh"
+  },
+  "commonLabels": {
+    "alertname": "ZeebeGatewayLatencyHigh",
+    "severity": "warning"
+  },
+  "commonAnnotations": {
+    "summary": "Zeebe Gateway {{ $labels.pod }} — latência p99 acima de 2s"
+  },
+  "externalURL": "http://localhost:9093",
+  "version": "4",
+  "groupKey": "{}/{alertname=~\".*\"}:{alertname=\"ZeebeGatewayLatencyHigh\"}"
+}
