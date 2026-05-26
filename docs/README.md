@@ -43,6 +43,14 @@ Revisões periódicas aplicadas ao projeto antes de apresentação ao time.
 
 ---
 
+## Análises e investigações de desempenho
+
+| Arquivo | Conteúdo |
+|---|---|
+| [analise-llm-local-desempenho.md](analise-llm-local-desempenho.md) | Gargalo de processamento identificado em demo com 23 alertas; modelos locais candidatos; template de resultado por modelo; levers de otimização |
+
+---
+
 ## Fixes e investigações
 
 Registros de bugs investigados e corrigidos em ambiente real.
