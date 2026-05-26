@@ -118,14 +118,14 @@ class TestWebhookEndpoint:
         assert resp.status_code == 200
         assert resp.json()["queued"] == 0
 
-    def test_alert_without_agentia_label_is_filtered(self, client):
-        tc, mock_agent, *_ = client
+    def test_alert_without_agentia_label_gets_direct_notification(self, client):
+        tc, mock_agent, mock_teams, *_ = client
         payload = {
             "alerts": [
                 {
                     "status": "firing",
                     "labels": {"alertname": "NodeHighCPU", "severity": "warning"},
-                    "annotations": {},
+                    "annotations": {"description": "CPU alto no nó"},
                     "startsAt": "2026-05-24T10:00:00Z",
                     "endsAt": "0001-01-01T00:00:00Z",
                 }
@@ -133,8 +133,9 @@ class TestWebhookEndpoint:
         }
         resp = tc.post("/webhook", json=payload)
         assert resp.status_code == 202
-        assert resp.json()["queued"] == 0
+        assert resp.json()["queued"] == 1
         mock_agent.assert_not_called()
+        mock_teams.assert_called_once()
 
     def test_zeebe_alert_returns_202_and_triggers_agent(self, client):
         tc, mock_agent, mock_teams, _ = client
@@ -196,8 +197,8 @@ class TestWebhookEndpoint:
         assert resp.json()["queued"] == 1
         mock_agent.assert_called_once()
 
-    def test_multiple_alerts_queues_only_matching(self, client):
-        tc, mock_agent, *_ = client
+    def test_agentia_true_triggers_agent_others_go_direct(self, client):
+        tc, mock_agent, mock_teams, *_ = client
         payload = {
             "alerts": [
                 {
@@ -210,7 +211,7 @@ class TestWebhookEndpoint:
                 {
                     "status": "firing",
                     "labels": {"alertname": "NodeDiskPressure", "severity": "warning"},
-                    "annotations": {},
+                    "annotations": {"description": "Disco com pressão"},
                     "startsAt": "2026-05-24T10:00:00Z",
                     "endsAt": "0001-01-01T00:00:00Z",
                 },
@@ -218,8 +219,9 @@ class TestWebhookEndpoint:
         }
         resp = tc.post("/webhook", json=payload)
         assert resp.status_code == 202
-        assert resp.json()["queued"] == 1
+        assert resp.json()["queued"] == 2
         assert mock_agent.call_count == 1
+        assert mock_teams.call_count == 2
 
     def test_generate_runbook_called_for_firing(self, client):
         tc, _, _, mock_runbook = client

@@ -8,10 +8,14 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- `agent/webhook_receiver.py`: `_notify_direct()` — path de notificação direta para alertas sem `agentia=true`; monta card Teams com as informações da própria regra (labels/annotations) sem chamar LLM, runbook ou RAG
+- `agent/metrics.py`: contador `aiops_alerts_direct_total` — rastreia notificações diretas (sem LLM) separadamente das analisadas pelo agente
+
 ### Changed
 - Filtro de alertas migrado de `ALERT_FILTER_KEYWORDS` (heurística por nome) para label `agentia: "true"` nas PrometheusRules — controle explícito e por alerta de quais serão processados pelo agente; remover a label de um alerta específico desabilita o processamento sem alterar código ou variáveis de ambiente
 - `agent/config.py`: remove `ALERT_FILTER_KEYWORDS` — configuração não é mais necessária
-- `agent/webhook_receiver.py`: filtro substituído por `labels.get("agentia") != "true"`
+- `agent/webhook_receiver.py`: loop do webhook reestruturado — dedup aplicado a todos os alertas antes da branch; `agentia=true` → `_process_alert` (LLM); `agentia!=true` → `_notify_direct` (sem LLM); todos os alertas são notificados no Teams
 - `agent/tools.py`: `get_alert_rules()` filtra regras por `labels.agentia == "true"` em vez de keyword no nome
 - `.env.example`: remove seção `ALERT_FILTER_KEYWORDS`
 - `scripts/demo.sh`: remove `check_filter_keywords()` e todas as referências à variável removida

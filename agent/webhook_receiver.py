@@ -25,6 +25,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from knowledge_base import KnowledgeBase
 from metrics import (
     ALERTS_DEDUPLICATED,
+    ALERTS_DIRECT,
     ALERTS_FILTERED,
     ALERTS_PROCESSED,
     ANALYSIS_DURATION,
@@ -184,6 +185,33 @@ def _process_alert(alert: dict, alert_id: str) -> None:
     TEAMS_NOTIFICATIONS.labels(success=str(notified).lower()).inc()
 
 
+def _notify_direct(alert: dict, alert_id: str) -> None:
+    """Notifica Teams sem processamento LLM — usa labels/annotations da própria regra."""
+    labels      = alert.get("labels", {})
+    annotations = alert.get("annotations", {})
+    status      = alert.get("status", "firing")
+    alert_name  = labels.get("alertname", "unknown")
+    starts_at   = alert.get("startsAt", "")
+    ends_at     = alert.get("endsAt", "")
+
+    analysis = annotations.get("description") or annotations.get("summary") or ""
+
+    logger.info("[%s] Notificação direta (sem LLM): %s | status: %s", alert_id, alert_name, status)
+    ALERTS_DIRECT.inc()
+
+    notified = send_alert_to_teams(
+        alert_name=alert_name,
+        alert_labels=labels,
+        alert_annotations=annotations,
+        status=status,
+        analysis=analysis,
+        starts_at=starts_at,
+        ends_at=ends_at,
+        runbook_url="",
+    )
+    TEAMS_NOTIFICATIONS.labels(success=str(notified).lower()).inc()
+
+
 @app.post("/webhook", status_code=202)
 async def alertmanager_webhook(request: Request, background_tasks: BackgroundTasks):
     """
@@ -216,11 +244,6 @@ async def alertmanager_webhook(request: Request, background_tasks: BackgroundTas
         logger.info("[%s] Alerta recebido: %s | status: %s | labels: %s",
                     alert_id, alert_name, status, json.dumps(labels))
 
-        if labels.get("agentia") != "true":
-            logger.debug("[%s] Alerta %s ignorado (sem label agentia=true)", alert_id, alert_name)
-            ALERTS_FILTERED.inc()
-            continue
-
         fingerprint = _make_fingerprint(alert)
         if _is_duplicate(fingerprint, status):
             logger.info("[%s] Alerta %s duplicado (fingerprint=%s) — ignorado dentro do TTL de %ds",
@@ -228,8 +251,12 @@ async def alertmanager_webhook(request: Request, background_tasks: BackgroundTas
             ALERTS_DEDUPLICATED.inc()
             continue
 
-        logger.info("[%s] Alerta %s enfileirado para análise em background", alert_id, alert_name)
-        background_tasks.add_task(_process_alert, alert, alert_id)
+        if labels.get("agentia") == "true":
+            logger.info("[%s] Alerta %s enfileirado para análise pelo agente", alert_id, alert_name)
+            background_tasks.add_task(_process_alert, alert, alert_id)
+        else:
+            logger.info("[%s] Alerta %s enfileirado para notificação direta (sem LLM)", alert_id, alert_name)
+            background_tasks.add_task(_notify_direct, alert, alert_id)
         queued += 1
 
     return JSONResponse(

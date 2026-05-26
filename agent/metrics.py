@@ -21,7 +21,12 @@ ALERTS_PROCESSED = Counter(
 
 ALERTS_FILTERED = Counter(
     "aiops_alerts_filtered_total",
-    "Alertas ignorados por estarem fora do escopo Camunda",
+    "Alertas descartados sem nenhum processamento (reservado para uso futuro)",
+)
+
+ALERTS_DIRECT = Counter(
+    "aiops_alerts_direct_total",
+    "Alertas notificados diretamente no Teams sem análise LLM (agentia!=true)",
 )
 
 ALERTS_DEDUPLICATED = Counter(
