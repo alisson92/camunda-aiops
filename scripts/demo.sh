@@ -157,16 +157,46 @@ ensure_ollama() {
 
 # ── Gerenciamento do agente ───────────────────────────────────────────────────
 
-ensure_agent() {
-    # Se já está respondendo (iniciado externamente), só usa — não toca nele no cleanup
-    if curl -sf "http://localhost:${AGENT_PORT}/health" -o /dev/null 2>/dev/null; then
-        log_ok "Agente já está rodando na porta ${AGENT_PORT} — reutilizando."
+check_filter_keywords() {
+    local env_file="${PROJECT_DIR}/agent/.env"
+    local keywords
+    keywords=$(grep -E "^ALERT_FILTER_KEYWORDS=" "$env_file" 2>/dev/null \
+        | cut -d= -f2- | tr -d '"' || echo "")
+
+    if [[ -z "$keywords" ]]; then
+        log_ok "ALERT_FILTER_KEYWORDS: usando default (Zeebe,Camunda,Kube,Elasticsearch)"
         return
+    fi
+
+    log_info "ALERT_FILTER_KEYWORDS definido em agent/.env: ${keywords}"
+
+    local missing=""
+    for kw in "Kube" "Elasticsearch"; do
+        if ! echo "$keywords" | grep -qi "$kw"; then
+            missing="${missing} ${kw}"
+        fi
+    done
+
+    if [[ -n "$missing" ]]; then
+        log_warn "Keywords ausentes em ALERT_FILTER_KEYWORDS:${missing}"
+        log_warn "Alertas com esses prefixos serão filtrados e NÃO chegarão ao Teams."
+        log_info "Corrija em agent/.env: ALERT_FILTER_KEYWORDS=Zeebe,Camunda,Kube,Elasticsearch"
+        log_info "Depois reinicie o agente para a mudança ter efeito."
+    fi
+}
+
+ensure_agent() {
+    # Demo sempre reinicia o agente para garantir que o código e a configuração
+    # mais recentes (inclusive ALERT_FILTER_KEYWORDS) estejam em uso.
+    if curl -sf "http://localhost:${AGENT_PORT}/health" -o /dev/null 2>/dev/null; then
+        log_warn "Agente rodando na porta ${AGENT_PORT} — reiniciando para carregar código e config atuais."
+        lsof -ti:"${AGENT_PORT}" | xargs kill -9 2>/dev/null || true
+        sleep 1
     fi
 
     # Verifica se a porta está ocupada por outro processo que não responde ao /health
     if lsof -ti:"${AGENT_PORT}" &>/dev/null; then
-        log_warn "Porta ${AGENT_PORT} ocupada por processo não-agente. Liberando..."
+        log_warn "Porta ${AGENT_PORT} ainda ocupada. Liberando..."
         lsof -ti:"${AGENT_PORT}" | xargs kill -9 2>/dev/null || true
         sleep 1
     fi
@@ -345,34 +375,54 @@ print(json.dumps(data))
 ")
 
     local response http_code body
+    # Com webhook assíncrono, o agente retorna 202 imediatamente (análise ocorre em background).
+    # --max-time reduzido para 15s — a resposta chega em ~1s, não mais 30–90s do LLM.
     response=$(curl -s -w "\n__HTTP_STATUS__%{http_code}" \
         -X POST "${WEBHOOK_URL}" \
         -H "Content-Type: application/json" \
         -d "${payload}" \
-        --max-time 120)  # 120s: LLM local pode levar 10–30s
+        --max-time 15)
 
     http_code=$(echo "${response}" | grep '__HTTP_STATUS__' | sed 's/__HTTP_STATUS__//')
     body=$(echo "${response}" | grep -v '__HTTP_STATUS__')
 
-    if [[ "${http_code}" == "200" ]]; then
-        log_ok "HTTP ${http_code} — webhook processado"
-        # Exibe resumo da análise no terminal
+    # Aceita qualquer 2xx (200 = agente antigo síncrono, 202 = agente assíncrono atual)
+    if [[ "${http_code}" =~ ^2 ]]; then
         echo "${body}" | python3 -c "
 import json, sys
 try:
     data = json.load(sys.stdin)
-    analyses = data.get('analyses', [])
-    if analyses:
-        print('\n  Análise do agente:')
-        text = analyses[0].get('analysis', '')
-        for line in text.split('\n')[:6]:
-            print(f'  {line}')
-        if len(text) > 400:
-            print('  ...')
+    queued = data.get('queued', -1)
+
+    if queued > 0:
+        # Formato novo (agente assíncrono): alerta aceito e enfileirado
+        print(f'  \033[0;32m✔\033[0m HTTP ${http_code} — {queued} alerta(s) enfileirado(s) para análise')
+        print('  \033[0;36m→\033[0m Processando em background → aguarde o card no Microsoft Teams')
+    elif queued == 0:
+        # Alerta filtrado por ALERT_FILTER_KEYWORDS ou deduplicado
+        msg = data.get('message', '')
+        print(f'  \033[1;33m⚠\033[0m  HTTP ${http_code} — nenhum alerta processado (filtrado ou deduplicado)')
+        if msg:
+            print(f'  \033[0;36m→\033[0m {msg}')
+        print('  \033[0;36m→\033[0m Dica: verifique ALERT_FILTER_KEYWORDS em agent/.env')
     else:
-        print('  (alerta filtrado — nenhuma análise gerada)')
-except Exception:
-    pass
+        # Backward compat: agente antigo síncrono (campo 'analyses')
+        analyses = data.get('analyses', [])
+        if analyses:
+            print(f'  \033[0;32m✔\033[0m HTTP ${http_code} — webhook processado')
+            print()
+            print('  Análise do agente:')
+            text = analyses[0].get('analysis', '')
+            for line in text.split('\n')[:6]:
+                print(f'  {line}')
+            if len(text.split('\n')) > 6:
+                print('  ...')
+        else:
+            print(f'  \033[1;33m⚠\033[0m  HTTP ${http_code} — resposta inesperada (sem campo queued nem analyses)')
+            print(f'  \033[0;36m→\033[0m corpo: {str(data)[:120]}')
+except Exception as e:
+    print(f'  \033[1;33m⚠\033[0m  Não foi possível interpretar a resposta: {e}')
+    print(f'  \033[0;36m→\033[0m corpo raw: ${body[:200]}')
 " 2>/dev/null || true
     else
         log_error "HTTP ${http_code} — erro no webhook"
@@ -438,6 +488,7 @@ if [[ "${DRY_RUN}" != "true" ]]; then
     log_step "Verificando pré-requisitos"
     check_venv
     check_env_file
+    check_filter_keywords
 
     log_step "Ollama (LLM local)"
     ensure_ollama
