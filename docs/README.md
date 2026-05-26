@@ -43,6 +43,17 @@ Revisões periódicas aplicadas ao projeto antes de apresentação ao time.
 
 ---
 
+## Diagramas arquiteturais
+
+| Arquivo | O que mostra |
+|---|---|
+| [diagrams/arquitetura-componentes.md](diagrams/arquitetura-componentes.md) | Todos os componentes e suas conexões (Prometheus, Alertmanager, agente, LLM, Teams) |
+| [diagrams/fluxo-alerta-completo.md](diagrams/fluxo-alerta-completo.md) | Ciclo completo: do `predict_linear` no Prometheus até o card no Teams |
+| [diagrams/react-loop-agente.md](diagrams/react-loop-agente.md) | ReAct loop — como o LLM raciocina, consulta dados reais e chega à análise |
+| [diagrams/fluxo-webhook-assincrono.md](diagrams/fluxo-webhook-assincrono.md) | Webhook assíncrono, comparativo antes/depois e deduplicação por fingerprint |
+
+---
+
 ## Análises e investigações de desempenho
 
 | Arquivo | Conteúdo |
