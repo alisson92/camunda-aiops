@@ -73,10 +73,11 @@ deploy: ## Fluxo completo: build → kind-load → apply → aguarda pod pronto 
 	@echo "[4/5] Forçando rollout para garantir nova imagem..."
 	@kubectl rollout restart deployment/camunda-aiops-agent -n camunda
 	@kubectl rollout status  deployment/camunda-aiops-agent -n camunda --timeout=120s
-	@echo "[5/5] Health check no NodePort (localhost:30501)..."
+	@echo "[5/5] Health check no NodePort..."
 	@sleep 2
-	@curl -sf http://localhost:30501/health | python3 -m json.tool
-	@echo "Deploy concluído. Webhook disponível em http://localhost:30501/webhook"
+	@NODE_IP=$$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}') && \
+	  curl -sf http://$$NODE_IP:30501/health | python3 -m json.tool && \
+	  echo "Deploy concluído. Webhook disponível em http://$$NODE_IP:30501/webhook"
 
 build: ## Build da imagem Docker do agente
 	docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .

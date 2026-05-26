@@ -65,8 +65,10 @@ make k8s-status                  # verifica Pod, Service, PVC e CronJob
 make k8s-logs                    # acompanha logs em tempo real
 make k8s-delete                  # remove Deployment/Service/CronJob (mantém PVC e Secret)
 
-# Webhook disponível no NodePort após deploy: http://localhost:30501/webhook
-# Configurar no Alertmanager: receivers[].webhook_configs[].url = http://localhost:30501/webhook
+# WSL2+Kind: NodePort não é acessível via localhost — use o IP do nó:
+#   NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+#   Webhook: http://$NODE_IP:30501/webhook  (configurar no Alertmanager)
+#   Health:  http://$NODE_IP:30501/health
 
 # ── Modo desenvolvimento local (sem Kind) ──────────────────────────────────────
 # Iniciar o agente (webhook receiver na porta 5001)

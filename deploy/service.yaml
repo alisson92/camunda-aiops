@@ -13,8 +13,10 @@ spec:
       port: 5001
       targetPort: 5001
       # NodePort: acesso externo ao Kind sem Ingress.
-      # http://localhost:30501/health
-      # http://localhost:30501/webhook  ← URL para o Alertmanager
+      # WSL2+Kind: acessível via IP do nó (não localhost):
+      #   NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+      #   http://$NODE_IP:30501/health
+      #   http://$NODE_IP:30501/webhook  ← URL para configurar no Alertmanager
       # EKS produção: remover nodePort e trocar type para ClusterIP + Ingress ALB
       nodePort: 30501
   type: NodePort
