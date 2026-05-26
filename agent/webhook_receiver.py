@@ -26,7 +26,6 @@ from knowledge_base import KnowledgeBase
 from metrics import (
     ALERTS_DEDUPLICATED,
     ALERTS_DIRECT,
-    ALERTS_FILTERED,
     ALERTS_PROCESSED,
     ANALYSIS_DURATION,
     TEAMS_NOTIFICATIONS,
