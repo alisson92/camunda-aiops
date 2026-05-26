@@ -183,7 +183,7 @@ Para medir acurácia, é necessário ter alertas *reais* correspondentes a cada 
 
 ---
 
-## 3. Filtrar alertas por label em vez de keyword
+## 3. Filtrar alertas por label em vez de keyword ✅ Implementado
 
 ### Problema atual
 
@@ -193,7 +193,17 @@ O agente usa `ALERT_FILTER_KEYWORDS` para decidir quais alertas processar — um
 - Um alerta não relacionado que contenha "Kube" entra no processamento
 - Adicionar uma nova PrometheusRule requer lembrar de atualizar a variável de ambiente
 
-### Proposta
+### Comportamento implementado
+
+A label controla o nível de processamento — todos os alertas chegam ao Teams:
+
+```
+agentia=true  → LLM analisa → card enriquecido (análise + runbook + RAG)
+agentia=false → direto Teams → card com labels/annotations da própria regra
+(ambos passam pela deduplicação por fingerprint)
+```
+
+### Proposta original
 
 Usar uma label nas PrometheusRules para opt-in explícito:
 
@@ -303,7 +313,7 @@ Substituir `prometheus-client` direto por OpenTelemetry com exporter Prometheus.
 
 | # | Item | Complexidade | Impacto | Pré-requisito |
 |---|---|---|---|---|
-| 1 | Label `agentia: true` nas PrometheusRules | Baixa | Alto — melhora filtro imediatamente | Nenhum |
+| 1 | Label `agentia: true` nas PrometheusRules | ~~Baixa~~ | ~~Alto~~ | ✅ **Implementado** |
 | 2 | Métricas de timeout e queries Prometheus | Baixa | Médio — melhora observabilidade | Nenhum |
 | 3 | Persistência via volume local (docker) | Baixa | Alto — resolve perda de RAG no restart | Nenhum |
 | 4 | Persistência via PVC + CronJob (Kubernetes) | Média | Alto — solução definitiva para o cluster | Deploy em K8s |
