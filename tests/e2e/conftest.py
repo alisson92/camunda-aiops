@@ -10,6 +10,7 @@ Arquitetura:
 
 import json
 import time
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -139,7 +140,10 @@ def e2e_client(prometheus_url, httpserver):
     agent_module.OLLAMA_BASE_URL = httpserver.url_for("/v1").rstrip("/")
     notifier_module.TEAMS_WEBHOOK_URL = httpserver.url_for("/teams")
 
-    yield TestClient(app), httpserver
+    # Limpa o cache de deduplicação para que cada teste E2E comece com slate limpo.
+    # O cache é module-level em webhook_receiver e persiste entre testes na sessão.
+    with patch.dict("webhook_receiver._dedup_cache", {}, clear=True):
+        yield TestClient(app), httpserver
 
     # Restaura os valores originais
     tools_module.PROMETHEUS_URL = original_prometheus
