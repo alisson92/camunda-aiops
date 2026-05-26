@@ -47,6 +47,7 @@ Revisões periódicas aplicadas ao projeto antes de apresentação ao time.
 
 | Arquivo | Conteúdo |
 |---|---|
+| [como-o-agente-analisa-alertas.md](como-o-agente-analisa-alertas.md) | Explicação do fluxo completo de análise (ReAct loop, tool use, RAG, Prometheus) — referência para apresentação ao time |
 | [analise-llm-local-desempenho.md](analise-llm-local-desempenho.md) | Gargalo de processamento identificado em demo com 23 alertas; modelos locais candidatos; template de resultado por modelo; levers de otimização |
 
 ---
