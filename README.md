@@ -28,12 +28,13 @@ Microsoft Teams (Adaptive Card)
 ```
 camunda-aiops/
 ├── agent/                        # pacote Python do agente AIOps
-│   ├── config.py                 # ponto único de configuração (env vars)
+│   ├── config.py                 # ponto único de configuração (env vars + DEDUP_TTL_SECONDS)
 │   ├── reactive_agent.py         # loop agentic com tool use (Ollama)
 │   ├── runbook_generator.py      # geração de runbooks Markdown via LLM + renderer HTML
 │   ├── tools.py                  # ferramentas: queries Prometheus HTTP API
 │   ├── teams_notifier.py         # notificações via Adaptive Card v1.2
-│   ├── webhook_receiver.py       # FastAPI — recebe payloads do Alertmanager
+│   ├── webhook_receiver.py       # FastAPI — recebe payloads, deduplicação, análise assíncrona
+│   ├── metrics.py                # métricas Prometheus (Counters, Histograms)
 │   └── prompts.py                # loader de prompts do diretório prompts/
 ├── prompts/
 │   ├── system-prompt-v1.md       # system prompt v1 — DEPRECIADO (referência histórica)
@@ -53,25 +54,26 @@ camunda-aiops/
 │   ├── camunda-forecasting.json  # dashboard Grafana — forecasting Zeebe/Camunda (11 painéis)
 │   └── camunda-aiops-agent.json  # dashboard Grafana — observabilidade do agente AIOps
 ├── scripts/
+│   ├── generate-fixtures.py      # gera fixtures JSON a partir dos alerting/*.yaml (auto, idempotente)
 │   ├── run-cycle-test.sh         # ciclo completo automatizado com auto-recuperação
-│   ├── demo.sh                   # demo autossuficiente — inicia Ollama + agente + 4 cenários
+│   ├── demo.sh                   # demo autossuficiente — gera fixtures + inicia Ollama + agente
 │   ├── smoke.sh                  # smoke test — envia cards de teste para o Teams
 │   ├── check-metrics.sh          # inspeciona métricas disponíveis no Prometheus (via API)
 │   ├── test-port-metrics.sh      # verifica se pods expõem /actuator/prometheus (kubectl exec)
 │   ├── load-generator.sh         # gera carga sintética com sazonalidade
 │   └── import-dashboard.sh       # importa o dashboard via API do Grafana
 ├── tests/
-│   ├── fixtures/                 # payloads de alerta para testes
-│   ├── unit/                     # 219 testes unitários (sem infraestrutura)
+│   ├── fixtures/                 # 24 payloads de alerta — 4 curados + 20 gerados por generate-fixtures.py
+│   ├── unit/                     # 224 testes unitários (sem infraestrutura)
 │   │   ├── test_config.py        # 12 testes — carregamento do .env + _BRTFormatter + ALERT_FILTER_KEYWORDS
-│   │   ├── test_webhook_receiver.py  # 37 testes — endpoints FastAPI (incl. /runbook, /runbook/by-alert, /health, startup reload)
+│   │   ├── test_webhook_receiver.py  # 44 testes — endpoints FastAPI + deduplicação (7 testes) + async 202
 │   │   ├── test_reactive_agent.py    # 17 testes — loop agentic, alert_id, LLM_ROUNDS_USED
 │   │   ├── test_runbook_generator.py # 42 testes — geração, fallback, Markdown→HTML
 │   │   ├── test_tools.py             # 22 testes — queries Prometheus + _resolve_ts
 │   │   ├── test_teams_notifier_unit.py  # 34 testes — Adaptive Card e helpers
 │   │   ├── test_metrics.py           # 11 testes — definição e registro das métricas (incl. LLM_ROUNDS_USED)
 │   │   ├── test_knowledge_base.py    # 37 testes — KB: init, search, scoring, persistência, get_runbooks
-│   │   └── test_alert_fixtures.py    # 7 testes — estrutura dos fixtures JSON
+│   │   └── test_alert_fixtures.py    # 7 testes — estrutura dos fixtures JSON (lista dinâmica via glob)
 │   ├── smoke/                    # smoke tests manuais (não executados pelo pytest)
 │   │   └── test_teams_notifier.py   # envia cards reais para o Teams (requer .env)
 │   ├── integration/              # testes contra Prometheus real (Testcontainers)
@@ -154,10 +156,11 @@ Esta tabela é o ponto de entrada para qualquer dúvida sobre qual comando execu
 | Comando | Quando usar | Requer Kind? | Requer Ollama? | O que valida |
 |---|---|---|---|---|
 | `make smoke` | Verificar se o card Teams está chegando e bem formatado | Não | Não | Formatação do card, webhook Teams |
-| `make demo` | Apresentar ao time, ensaiar o pitch, demonstrar o ciclo real | Não | Sim (sobe automático) | Agente + LLM + runbook + Teams |
+| `make demo` | Apresentar ao time, ensaiar o pitch, demonstrar o ciclo real | Não | Sim (sobe automático) | Agente + LLM + runbook + Teams (todos os alertas) |
 | `make cycle-test` | Validar que o cluster Kubernetes está configurado corretamente | Sim | Sim | PrometheusRule → Alertmanager → webhook → agente |
-| `make test` | Antes de um commit, verificar que nada quebrou | Não | Não | 198 testes unitários, cobertura 100% |
+| `make test` | Antes de um commit, verificar que nada quebrou | Não | Não | 224 testes unitários, cobertura 100% |
 | `make test-integration` | Validar queries Prometheus após alterar `tools.py` | Docker | Não | `tools.py` contra Prometheus real (Testcontainers) |
+| `make generate-fixtures` | Adicionar novo alerta ao `alerting/` e gerar o fixture | Não | Não | Gera `tests/fixtures/<kebab>-alert.json` |
 | `make run` | Desenvolver localmente com recarregamento automático | Não | Sim | — (inicia o agente em modo dev) |
 
 **Regra prática:**
@@ -169,12 +172,12 @@ Esta tabela é o ponto de entrada para qualquer dúvida sobre qual comando execu
 
 ## Demo ao time
 
-O script `demo.sh` é totalmente autossuficiente: inicia o Ollama e o agente automaticamente, executa os cenários e encerra tudo ao final. Não requer o cluster Kind, nem abrir múltiplos terminais.
+O script `demo.sh` é totalmente autossuficiente: gera fixtures faltantes automaticamente, inicia o Ollama e o agente, executa todos os cenários e encerra tudo ao final. Não requer o cluster Kind, nem abrir múltiplos terminais.
 
 **Pré-requisito único:** `agent/.env` com `TEAMS_WEBHOOK_URL` configurada.
 
 ```bash
-# Ciclo completo: 4 cenários em sequência — um único comando
+# Ciclo completo: TODOS os alertas em sequência — um único comando
 make demo
 
 # Um cenário específico
@@ -189,7 +192,9 @@ make demo-resolved       # resolved — lifecycle completo
 ./scripts/demo.sh --list
 ```
 
-Cada cenário envia o payload ao webhook, aguarda o LLM processar e exibe os primeiros caracteres da análise no terminal. O card completo chega no Microsoft Teams.
+A demo descobre automaticamente todos os `*-alert.json` em `tests/fixtures/` — qualquer novo alerta adicionado ao `alerting/` aparece na demo após `make generate-fixtures`.
+
+Cada cenário envia o payload ao webhook, o agente processa em background (resposta imediata 202 Accepted) e o card chega no Microsoft Teams com a análise completa.
 
 ---
 
@@ -235,7 +240,7 @@ make smoke
 
 | Suíte | Testes | Infraestrutura | Cobertura |
 |---|---|---|---|
-| Unitários | 219 | Nenhuma | 100% (`fail_under = 100`) |
+| Unitários | 224 | Nenhuma | 100% (`fail_under = 100`) |
 | Integração | 7 | Docker — Prometheus real (Testcontainers) | — |
 | E2E | 3 | Docker — Prometheus real + LLM/Teams mock HTTP | — |
 
@@ -295,14 +300,15 @@ Cada card inclui: análise do agente (expansível), link para o dashboard, runbo
 ## Comandos úteis
 
 ```bash
-make run              # inicia o agente na porta 5001
-make test             # roda pytest (159 testes unitários + cobertura 100%)
-make smoke            # envia todos os cenários de teste para o Teams
-make smoke-critical   # envia só o critical
-make lint             # valida estilo com ruff
-make cycle-test       # ciclo completo automatizado
-make cycle-test-fast  # ciclo sem carga sintética (validação rápida)
-make help             # lista todos os targets disponíveis
+make run                # inicia o agente na porta 5001
+make test               # roda pytest (224 testes unitários + cobertura 100%)
+make smoke              # envia todos os cenários de teste para o Teams
+make smoke-critical     # envia só o critical
+make lint               # valida estilo com ruff
+make generate-fixtures  # gera fixtures JSON a partir de alerting/*.yaml
+make cycle-test         # ciclo completo automatizado
+make cycle-test-fast    # ciclo sem carga sintética (validação rápida)
+make help               # lista todos os targets disponíveis
 ```
 
 ---
@@ -316,10 +322,15 @@ tem uma única responsabilidade e se comunica via interfaces bem definidas:
 |---|---|---|
 | `PrometheusRule` CRD | Define thresholds preditivos como IaC | Kubernetes API |
 | Alertmanager | Roteamento e deduplicação de alertas | `webhook_configs` |
-| `webhook_receiver` | Recebe eventos e aciona o agente | `POST /webhook` (HTTP) |
+| `webhook_receiver` | Recebe evento, deduplica por fingerprint, enfileira análise | `POST /webhook` → 202 Accepted |
 | `reactive_agent` | Loop agentic: análise + tool use | OpenAI-compatible API |
 | `tools` | Queries ao Prometheus | Prometheus HTTP API |
 | `teams_notifier` | Formatação e entrega da notificação | Microsoft Teams Webhook |
+| `generate-fixtures.py` | Gera payloads de teste a partir dos alerting/*.yaml | CLI — lê YAML, escreve JSON |
+
+**Webhook assíncrono (202 Accepted):** o Alertmanager recebe confirmação imediatamente após o filtro e a deduplicação. A análise LLM, geração de runbook e notificação Teams ocorrem em background via `BackgroundTasks` do FastAPI — sem bloquear a fila do Alertmanager mesmo durante análises longas.
+
+**Deduplicação por fingerprint:** o campo `fingerprint` nativo do Alertmanager identifica unicamente cada regra+labels. Durante o TTL (padrão 5 min), re-disparos do mesmo alerta são descartados antes de chegar ao LLM. Alertas `resolved` sempre passam — o encerramento deve ser notificado independente do TTL.
 
 **Vendor neutrality:** O SDK `openai` é usado com `base_url` apontando para o Ollama local.
 Trocar de LLM (Ollama → GPT-4 → Claude API) exige mudar apenas duas variáveis de ambiente.
@@ -335,6 +346,7 @@ Trocar de LLM (Ollama → GPT-4 → Claude API) exige mudar apenas duas variáve
 | `docs/etapa-2-grafana-mcp-server.md` | Grafana MCP Server + Claude Code |
 | `docs/etapa-3-agente-reativo-claude-api.md` | Agente com Claude API (histórico) |
 | `docs/etapa-4-ollama-local-llm.md` | Migração para Ollama local |
+| `docs/etapa-13-fixtures-dedup-webhook-assincrono.md` | Fixtures dinâmicos, deduplicação por fingerprint e webhook assíncrono |
 | `docs/fix-*.md` | Investigações e fixes documentados |
 | `prompts/system-prompt-v1.md` | System prompt original (preservado para rollback) |
 | `prompts/system-prompt-v2.md` | System prompt ativo — adiciona URGÊNCIA, formato resolved, contexto Camunda 8 |
@@ -348,7 +360,7 @@ Trocar de LLM (Ollama → GPT-4 → Claude API) exige mudar apenas duas variáve
 
 | Job | O que valida | Depende de |
 |---|---|---|
-| `python` | 159 testes unitários, cobertura 100%, `ruff` | — |
+| `python` | 224 testes unitários, cobertura 100%, `ruff` | — |
 | `yaml-lint` | `yamllint` em manifestos Kubernetes | — |
 | `shell-lint` | ShellCheck `severity=warning` em scripts | — |
 | `integration` | 7 testes — `tools.py` contra Prometheus real (Testcontainers) | `python` |

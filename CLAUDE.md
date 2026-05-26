@@ -58,17 +58,20 @@ kubectl get secret -n monitoring kube-prometheus-stack-grafana \
 # Iniciar o agente (webhook receiver na porta 5001)
 make run
 
-# Demo ao time: autossuficiente — inicia Ollama + agente, executa cenários, encerra tudo
+# Demo ao time: autossuficiente — gera fixtures + inicia Ollama + agente, executa TODOS os alertas
 # Pré-requisito único: agent/.env com TEAMS_WEBHOOK_URL
-make demo                        # ciclo completo (4 cenários)
+make demo                        # ciclo completo (todos os *-alert.json)
 make demo-zeebe                  # apenas ZeebeMemoryPredictedHigh
 make demo-backpressure           # ZeebeBackpressureGrowing (critical — maior impacto)
 make demo-resolved               # alerta encerrado (lifecycle completo)
 
 # Testes
-make test                        # 219 testes unitários + cobertura 100%
+make test                        # 224 testes unitários + cobertura 100%
 make test-integration            # Prometheus real via Testcontainers
 make test-e2e                    # ciclo completo com mock HTTP
+
+# Fixtures (geração automática a partir de alerting/*.yaml)
+make generate-fixtures           # gera tests/fixtures/<kebab>-alert.json para cada alerta
 
 # Smoke test (requer agent/.env com TEAMS_WEBHOOK_URL)
 make smoke
@@ -92,18 +95,24 @@ Dashboard após import: `http://localhost:3000/d/camunda-local-forecasting/`
 ## Arquitetura
 
 ```
-agent/            Pacote Python do agente AIOps (config, tools, notifier, webhook)
+agent/            Pacote Python do agente AIOps (config, tools, notifier, webhook, metrics)
 prompts/          System prompts versionados (v1, v2, ...) + GUIDELINES.md
-scripts/          Scripts operacionais: demo, check-metrics, load-generator, import-dashboard
+scripts/          Scripts operacionais: generate-fixtures, demo, check-metrics, load-generator, import-dashboard
 dashboards/       camunda-forecasting.json (forecasting) + camunda-aiops-agent.json (observabilidade do agente)
 alerting/         7 PrometheusRule CRDs: Camunda, Elasticsearch, Kubernetes nós/pods
 tests/
-  unit/           219 testes unitários (sem infraestrutura)
+  unit/           224 testes unitários (sem infraestrutura)
   integration/    7 testes — Prometheus real via Testcontainers
   e2e/            3 testes — ciclo completo: webhook → agente → Prometheus → LLM → Teams
-  fixtures/       Payloads JSON do Alertmanager (usados por testes e demo)
+  fixtures/       24 payloads JSON — 4 curados + 20 gerados por generate-fixtures.py
 docs/             Documentação: etapas, fixes, decisões técnicas
 ```
+
+**Fluxo do webhook (assíncrono):**
+1. `POST /webhook` recebe payload do Alertmanager
+2. Para cada alerta: aplica filtro por keywords → verifica deduplicação por fingerprint
+3. Alerta novo → `background_tasks.add_task(_process_alert, ...)` + retorna 202 imediatamente
+4. Em background: `run_agent` → `generate_runbook` → `send_alert_to_teams`
 
 O dashboard tem duas seções:
 - **Infra K8s** — CPU, memória, pods por namespace usando cAdvisor + kube-state-metrics
@@ -141,6 +150,9 @@ prometheus:
 - O arquivo `dashboards/camunda-forecasting.json` deve ter o campo `id` ausente ou nulo para que o Grafana trate como criação.
 - `agent/.env` **nunca** deve ser commitado — contém `TEAMS_WEBHOOK_URL` e outros segredos. Usar `.env.example` como template.
 - `demo.sh`: o Ollama `qwen2.5:7b` leva 10–30s para processar. `curl --max-time 120` está configurado para dar tempo ao modelo.
+- `generate-fixtures.py`: idempotente por nome de arquivo — não sobrescreve fixtures existentes. Expressões Go template são resolvidas com valores padrão por componente (zeebe, elasticsearch, kube).
+- `_dedup_cache`: variável module-level em `webhook_receiver.py` — persiste durante toda a vida do processo. Em testes, deve ser limpo via `patch.dict("webhook_receiver._dedup_cache", {}, clear=True)`.
+- `DEDUP_TTL_SECONDS`: padrão 300s (5 min). Alertas `resolved` **nunca** são deduplicados — sempre passam.
 
 ---
 
@@ -155,12 +167,14 @@ prometheus:
 | 5 | Notificações Teams com Adaptive Card | ✅ Concluída |
 | 6 | Ciclo completo automatizado (`run-cycle-test.sh`) | ✅ Concluída |
 | 7 | Qualidade: 100% cobertura, testes integração + E2E, CI 5 jobs | ✅ Concluída |
-| 8 | **Demo mode (`make demo`) — sem Kind, sem alertas reais** | 🔄 Em andamento |
-| 9 | Refinamento do system prompt v2 | ⏳ Próxima |
+| 8 | Demo mode (`make demo`) — sem Kind, sem alertas reais | ✅ Concluída |
+| 9 | Refinamento do system prompt v2 | ✅ Concluída |
 | 10 | Dashboard de observabilidade do próprio agente | ✅ Concluída |
 | 11 | Runbook generation automático | ✅ Concluída |
-| 12 | Few-shot + RAG com histórico de incidentes | ⏳ Próxima |
-| 13 | Pipeline Prophet para sazonalidade | ⏳ Longo prazo |
+| 12 | Few-shot + RAG com histórico de incidentes | ✅ Concluída |
+| 13 | Fixtures dinâmicos, deduplicação por fingerprint e webhook assíncrono | ✅ Concluída |
+| 14 | Pipeline Prophet para sazonalidade | ⏳ Longo prazo |
+| 15 | Few-shot com exemplos curados por severidade | ⏳ Próxima |
 
 ---
 

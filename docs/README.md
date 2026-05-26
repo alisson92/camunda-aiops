@@ -22,6 +22,7 @@ Cada etapa documenta o que foi implementado, as decisões técnicas e como usar.
 | [etapa-10-observabilidade-agente.md](etapa-10-observabilidade-agente.md) | Métricas Prometheus do próprio agente (`GET /metrics`) e dashboard Grafana |
 | [etapa-11-runbook-generation.md](etapa-11-runbook-generation.md) | Geração automática de runbooks via LLM após cada análise |
 | [etapa-12-rag-conhecimento.md](etapa-12-rag-conhecimento.md) | Few-shot + RAG com base de conhecimento local (`KnowledgeBase`) |
+| [etapa-13-fixtures-dedup-webhook-assincrono.md](etapa-13-fixtures-dedup-webhook-assincrono.md) | Fixtures dinâmicos (generate-fixtures.py), deduplicação por fingerprint (TTL 5 min) e webhook 202 Accepted |
 
 ---
 

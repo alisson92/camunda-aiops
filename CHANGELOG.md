@@ -10,6 +10,54 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.14.0] — 2026-05-26
+
+### Added (Etapa 13 — Fixtures dinâmicos, deduplicação e webhook assíncrono)
+
+**Geração automática de fixtures**
+- `scripts/generate-fixtures.py` — lê todos os `alerting/*.yaml` e gera `tests/fixtures/<kebab>-alert.json` para cada alerta; idempotente por nome de arquivo; resolve expressões Go template (`{{ $labels.xxx }}`, `{{ $value | humanizePercentage }}`) com valores padrão por componente; extrai labels referenciados nas annotations e os injeta no payload gerado
+- `Makefile`: target `generate-fixtures` — `python scripts/generate-fixtures.py`
+- `pyproject.toml`: dependência de dev `pyyaml>=6.0.0` para leitura dos YAMLs do Alertmanager
+- 20 novos fixtures gerados automaticamente para todos os alertas Kubernetes e Elasticsearch
+
+**Deduplicação por fingerprint**
+- `agent/webhook_receiver.py`: `_dedup_cache: dict[str, datetime]` — cache module-level de fingerprints processados; `_make_fingerprint(alert)` usa campo nativo do Alertmanager ou MD5(alertname+labels); `_is_duplicate(fingerprint, status)` — janela TTL configurável, alertas `resolved` sempre passam (nunca deduplicados); entradas expiradas removidas a cada chamada (sem vazamento de memória)
+- `agent/config.py`: `DEDUP_TTL_SECONDS: int` — padrão `300` (5 min), configurável via env var
+- `agent/metrics.py`: `ALERTS_DEDUPLICATED` — novo Counter `aiops_alerts_deduplicated_total` para observabilidade da deduplicação
+- `tests/unit/test_webhook_receiver.py`: classe `TestDeduplication` com 7 novos testes cobrindo TTL, bypass em resolved, expiração de entradas, fingerprint nativo vs derivado
+
+**Webhook assíncrono (202 Accepted)**
+- `agent/webhook_receiver.py`: extrai lógica de análise para `_process_alert(alert, alert_id)` — chamado via `BackgroundTasks`; endpoint retorna `202 Accepted` com `{"queued": N}` imediatamente após filtro + dedup; Alertmanager nunca bloqueia aguardando o LLM
+- Contrato de resposta: `{"message": "N alerta(s) enfileirado(s)", "queued": N}` com status `202`
+
+### Changed (Etapa 13)
+
+**Fixtures**
+- `tests/fixtures/zeebe-memory-alert.json` → `zeebe-memory-predicted-high-alert.json` (convenção kebab-case do alertname)
+- `tests/fixtures/zeebe-backpressure-alert.json` → `zeebe-backpressure-growing-alert.json`
+- `tests/fixtures/namespace-memory-alert.json` → `camunda-namespace-memory-pressure-alert.json`
+- `tests/fixtures/zeebe-resolved.json` → `zeebe-memory-predicted-high-resolved.json`
+- `tests/unit/test_alert_fixtures.py`: `ALERT_FIXTURES` agora dinâmico — `glob("*.json")` em vez de lista hardcoded
+- `scripts/run-cycle-test.sh`: referências atualizadas para novos nomes de fixture
+- `scripts/demo.sh`: `ensure_fixtures()` invoca `generate-fixtures.py` antes da demo; modo `all` descobre fixtures dinamicamente via `find ... -name "*-alert.json" | sort`
+
+**Filtro de alertas**
+- `agent/config.py`: `ALERT_FILTER_KEYWORDS` default `"Zeebe,Camunda"` → `"Zeebe,Camunda,Kube,Elasticsearch"` — alertas Kubernetes e Elasticsearch agora processados sem alteração de configuração
+
+**Testes**
+- `tests/unit/test_webhook_receiver.py`: status `200` → `202` em todos os testes de webhook; campo `analyses` → `queued`; fixture `client` inclui `patch.dict("webhook_receiver._dedup_cache", {}, clear=True)` para isolamento entre testes
+- `tests/e2e/test_alert_cycle.py`: status `200` → `202`; campo `analyses` → `queued`
+- `tests/e2e/conftest.py`: `e2e_client` fixture envolve yield em `patch.dict("webhook_receiver._dedup_cache", {}, clear=True)` — evita deduplicação cruzada entre testes E2E
+- `pyproject.toml`: versão `0.13.0` → `0.14.0`
+- `CHANGELOG.md`: `[Unreleased]` convertido em `[0.14.0]`
+
+### Fixed (Etapa 13)
+- Alertas Kubernetes e Elasticsearch eram silenciosamente filtrados porque `ALERT_FILTER_KEYWORDS` não incluía `Kube` nem `Elasticsearch` no default
+- Expressões Go template (`{{ $labels.persistentvolumeclaim }}`) geradas literalmente nos fixtures — `generate-fixtures.py` agora resolve antes de gravar
+- Cache de deduplicação `_dedup_cache` persistia entre testes unitários e E2E na mesma sessão pytest, causando `IndexError` no terceiro teste E2E — corrigido com `patch.dict(..., clear=True)` nas fixtures de teste
+
+---
+
 ## [0.13.0] — 2026-05-25
 
 ### Added (Revisão G — Documentação final e consistência)
