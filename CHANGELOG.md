@@ -16,6 +16,7 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ### Added (pós 0.14.0)
 - `docs/analise-llm-local-desempenho.md` — análise do gargalo de processamento identificado em demo com 23 alertas (~35 min); decomposição das 3 chamadas LLM por alerta; tabela de modelos locais gratuitos candidatos (`qwen2.5:3b`, `phi4-mini`, `llama3.2:3b`, `gemma3:4b`, `mistral:7b`); template de resultado para testes comparativos; critérios objetivos de qualidade; levers de otimização futuros (paralelismo Ollama, Celery, redução de chamadas)
+- `docs/comparativo-solucoes-aiops-comunidade.md` — análise comparativa entre camunda-aiops e as principais soluções AIOps da comunidade (HolmesGPT CNCF, K8sGPT, Robusta, Grafana LLM App); tabela de capacidades por ferramenta; diagrama de camadas complementares; cenário de coexistência com `kube-prometheus-stack`; caminho recomendado de adoção; explica o nicho único do camunda-aiops (forecasting Camunda 8 + Ollama nativo + RAG time)
 
 ---
 
