@@ -6,7 +6,7 @@ Dependências externas (run_agent, send_alert_to_teams, httpx) são mockadas
 para que os testes rodem sem Prometheus, Ollama ou Alertmanager disponíveis.
 """
 
-from datetime import timezone
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -19,7 +19,11 @@ _MOCK_RUNBOOK_MD = "# Runbook: ZeebeMemoryPredictedHigh\n\nconteúdo"
 
 @pytest.fixture()
 def client():
-    """Cria o TestClient isolando chamadas externas do agente."""
+    """Cria o TestClient isolando chamadas externas do agente.
+
+    _dedup_cache é limpo a cada teste para evitar que o estado de deduplicação
+    de um teste vaze para o seguinte — o cache é module-level e persiste na sessão.
+    """
     with (
         patch("webhook_receiver.run_agent", return_value="análise mockada") as mock_agent,
         patch("webhook_receiver.send_alert_to_teams", return_value=True) as mock_teams,
@@ -27,6 +31,7 @@ def client():
             "webhook_receiver.generate_runbook",
             return_value=(_MOCK_RUNBOOK_ID, _MOCK_RUNBOOK_MD),
         ) as mock_runbook,
+        patch.dict("webhook_receiver._dedup_cache", {}, clear=True),
     ):
         from webhook_receiver import app
 
@@ -311,6 +316,86 @@ class TestWebhookEndpoint:
 
 
 # ---------------------------------------------------------------------------
+# Deduplicação por fingerprint
+# ---------------------------------------------------------------------------
+
+
+class TestDeduplication:
+    _ALERT = {
+        "status": "firing",
+        "labels": {"alertname": "ZeebeMemoryPredictedHigh", "severity": "warning"},
+        "annotations": {},
+        "startsAt": "2026-01-01T00:00:00Z",
+        "endsAt": "0001-01-01T00:00:00Z",
+        "fingerprint": "fp-dedup-test-01",
+    }
+
+    def _payload(self, fingerprint: str | None = "fp-dedup-test-01", status: str = "firing") -> dict:
+        alert = {**self._ALERT, "status": status}
+        if fingerprint is not None:
+            alert["fingerprint"] = fingerprint
+        else:
+            alert.pop("fingerprint", None)
+        return {"alerts": [alert]}
+
+    def test_first_occurrence_is_processed(self, client):
+        tc, mock_agent, *_ = client
+        with patch.dict("webhook_receiver._dedup_cache", {}, clear=True):
+            resp = tc.post("/webhook", json=self._payload("fp-first"))
+        assert len(resp.json()["analyses"]) == 1
+        mock_agent.assert_called_once()
+
+    def test_duplicate_within_ttl_is_skipped(self, client):
+        tc, mock_agent, *_ = client
+        with patch.dict("webhook_receiver._dedup_cache", {}, clear=True):
+            tc.post("/webhook", json=self._payload("fp-dup"))
+            mock_agent.reset_mock()
+            resp = tc.post("/webhook", json=self._payload("fp-dup"))
+        assert len(resp.json()["analyses"]) == 0
+        mock_agent.assert_not_called()
+
+    def test_resolved_is_never_deduplicated(self, client):
+        tc, mock_agent, *_ = client
+        with patch.dict("webhook_receiver._dedup_cache", {}, clear=True):
+            tc.post("/webhook", json=self._payload("fp-res", status="resolved"))
+            mock_agent.reset_mock()
+            resp = tc.post("/webhook", json=self._payload("fp-res", status="resolved"))
+        assert len(resp.json()["analyses"]) == 1
+        mock_agent.assert_called_once()
+
+    def test_expired_entry_is_reprocessed(self, client):
+        tc, mock_agent, *_ = client
+        old_ts = datetime.now(UTC) - timedelta(minutes=10)
+        with patch.dict("webhook_receiver._dedup_cache", {"fp-expired": old_ts}):
+            resp = tc.post("/webhook", json=self._payload("fp-expired"))
+        assert len(resp.json()["analyses"]) == 1
+        mock_agent.assert_called_once()
+
+    def test_fingerprint_fallback_without_field(self, client):
+        tc, mock_agent, *_ = client
+        with patch.dict("webhook_receiver._dedup_cache", {}, clear=True):
+            resp = tc.post("/webhook", json=self._payload(fingerprint=None))
+        assert len(resp.json()["analyses"]) == 1
+        mock_agent.assert_called_once()
+
+    def test_make_fingerprint_uses_native_field(self):
+        from webhook_receiver import _make_fingerprint
+
+        alert = {"fingerprint": "native-fp", "labels": {"alertname": "Test"}}
+        assert _make_fingerprint(alert) == "native-fp"
+
+    def test_make_fingerprint_derives_from_labels(self):
+        from webhook_receiver import _make_fingerprint
+
+        alert = {"labels": {"alertname": "TestAlert", "severity": "warning"}}
+        fp = _make_fingerprint(alert)
+        assert isinstance(fp, str)
+        assert len(fp) == 12
+        # Determinístico: mesmas labels → mesmo fingerprint
+        assert _make_fingerprint(alert) == fp
+
+
+# ---------------------------------------------------------------------------
 # /runbook/{alert_id}
 # ---------------------------------------------------------------------------
 
@@ -530,3 +615,4 @@ class TestMetricsEndpoint:
         assert "aiops_webhooks_total" in resp.text
         assert "aiops_alerts_processed_total" in resp.text
         assert "aiops_analysis_duration_seconds" in resp.text
+        assert "aiops_alerts_deduplicated_total" in resp.text

@@ -7,17 +7,25 @@ Uso:
   make run
 """
 
+import hashlib
 import json
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta, timezone
 
 import httpx
-from config import AGENT_PUBLIC_URL, ALERT_FILTER_KEYWORDS, ALERTMANAGER_URL, setup_logging
+from config import (
+    AGENT_PUBLIC_URL,
+    ALERT_FILTER_KEYWORDS,
+    ALERTMANAGER_URL,
+    DEDUP_TTL_SECONDS,
+    setup_logging,
+)
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from knowledge_base import KnowledgeBase
 from metrics import (
+    ALERTS_DEDUPLICATED,
     ALERTS_FILTERED,
     ALERTS_PROCESSED,
     ANALYSIS_DURATION,
@@ -28,6 +36,9 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from reactive_agent import run_agent
 from runbook_generator import generate_runbook, render_runbook_html
 from teams_notifier import send_alert_to_teams
+
+# Cache de deduplicação: fingerprint → timestamp do último processamento
+_dedup_cache: dict[str, datetime] = {}
 
 # Armazena runbooks gerados em memória: alert_id → (alert_name, runbook_markdown)
 _runbooks: dict[str, tuple[str, str]] = {}
@@ -43,6 +54,41 @@ setup_logging()
 _kb = KnowledgeBase()
 
 logger = logging.getLogger(__name__)
+
+
+def _make_fingerprint(alert: dict) -> str:
+    """Retorna o fingerprint do alerta (campo nativo) ou deriva um via hash de labels."""
+    fp = alert.get("fingerprint")
+    if fp:
+        return str(fp)
+    labels = alert.get("labels", {})
+    key = labels.get("alertname", "unknown") + "|" + "|".join(
+        f"{k}={v}" for k, v in sorted(labels.items())
+    )
+    return hashlib.md5(key.encode()).hexdigest()[:12]
+
+
+def _is_duplicate(fingerprint: str, status: str) -> bool:
+    """Retorna True se o alerta já foi processado dentro do DEDUP_TTL_SECONDS.
+
+    Alertas resolved nunca são deduplicados — o encerramento deve sempre ser
+    notificado independente do TTL. Entradas expiradas são removidas a cada chamada
+    para manter o cache limitado em memória.
+    """
+    if status == "resolved":
+        return False
+
+    now = datetime.now(UTC)
+
+    expired = [fp for fp, ts in _dedup_cache.items() if (now - ts).total_seconds() > DEDUP_TTL_SECONDS]
+    for fp in expired:
+        del _dedup_cache[fp]
+
+    if fingerprint in _dedup_cache:
+        return True
+
+    _dedup_cache[fingerprint] = now
+    return False
 
 
 def _reload_runbooks_from_kb() -> None:
@@ -108,6 +154,13 @@ async def alertmanager_webhook(request: Request):
         if not any(kw in alert_name for kw in ALERT_FILTER_KEYWORDS):
             logger.debug("[%s] Alerta %s ignorado (fora do escopo Camunda)", alert_id, alert_name)
             ALERTS_FILTERED.inc()
+            continue
+
+        fingerprint = _make_fingerprint(alert)
+        if _is_duplicate(fingerprint, status):
+            logger.info("[%s] Alerta %s duplicado (fingerprint=%s) — ignorado dentro do TTL de %ds",
+                        alert_id, alert_name, fingerprint, DEDUP_TTL_SECONDS)
+            ALERTS_DEDUPLICATED.inc()
             continue
 
         context_docs = _kb.search(alert_name, k=2)

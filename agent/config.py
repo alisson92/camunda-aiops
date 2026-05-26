@@ -53,6 +53,10 @@ AGENT_PUBLIC_URL: str = os.environ.get("AGENT_PUBLIC_URL", "http://localhost:500
 _raw_keywords = os.environ.get("ALERT_FILTER_KEYWORDS", "Zeebe,Camunda,Kube,Elasticsearch")
 ALERT_FILTER_KEYWORDS: list[str] = [kw.strip() for kw in _raw_keywords.split(",") if kw.strip()]
 
+# Janela de deduplicação: alertas com o mesmo fingerprint dentro deste intervalo
+# são ignorados. Deve ser menor que o repeatInterval do Alertmanager (padrão: 4h).
+DEDUP_TTL_SECONDS: int = int(os.environ.get("DEDUP_TTL_SECONDS", "300"))
+
 # --- Logging ---
 LOG_LEVEL: str = os.environ.get("LOG_LEVEL", "INFO")
 

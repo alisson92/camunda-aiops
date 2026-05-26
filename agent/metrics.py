@@ -24,6 +24,11 @@ ALERTS_FILTERED = Counter(
     "Alertas ignorados por estarem fora do escopo Camunda",
 )
 
+ALERTS_DEDUPLICATED = Counter(
+    "aiops_alerts_deduplicated_total",
+    "Alertas suprimidos por deduplicação (mesmo fingerprint dentro do TTL)",
+)
+
 ANALYSIS_DURATION = Histogram(
     "aiops_analysis_duration_seconds",
     "Duração do ciclo completo de análise do agente (run_agent)",
