@@ -8,6 +8,15 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed (pós 0.14.0 — correções demo e dashboard)
+- `scripts/demo.sh`: `ensure_agent()` reutilizava agente antigo sem reiniciar — alertas `Kube*` e `Elasticsearch*` continuavam filtrados porque o processo rodava com código pré-fix; demo agora sempre reinicia o agente para garantir código e configuração atuais
+- `scripts/demo.sh`: verificação `http_code == "200"` não aceitava `202` — todos os cenários retornavam "erro no webhook" com o agente atualizado; corrigido para aceitar qualquer `2xx`
+- `scripts/demo.sh`: parsing da resposta lia campo `analyses` (formato síncrono antigo) — novo formato usa `queued`; todos os alertas exibiam "(alerta filtrado)" mesmo quando processados; reestruturado para extrair `queued`/`message` com chamadas Python simples, eliminando mix perigoso de `${var_bash}` dentro de f-strings Python que causava `syntax error: operand expected`
+- `dashboards/camunda-aiops-agent.json`: painéis "Notificações com Falha" e "Alertas Filtrados" exibiam "No data" quando não havia eventos — adicionado `or vector(0)` para mostrar `0` no estado saudável
+
+### Added (pós 0.14.0)
+- `docs/analise-llm-local-desempenho.md` — análise do gargalo de processamento identificado em demo com 23 alertas (~35 min); decomposição das 3 chamadas LLM por alerta; tabela de modelos locais gratuitos candidatos (`qwen2.5:3b`, `phi4-mini`, `llama3.2:3b`, `gemma3:4b`, `mistral:7b`); template de resultado para testes comparativos; critérios objetivos de qualidade; levers de otimização futuros (paralelismo Ollama, Celery, redução de chamadas)
+
 ---
 
 ## [0.14.0] — 2026-05-26
