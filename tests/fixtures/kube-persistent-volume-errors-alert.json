@@ -9,11 +9,13 @@
         "namespace": "camunda",
         "severity": "critical",
         "component": "storage",
-        "team": "platform"
+        "team": "platform",
+        "persistentvolume": "pvc-data-camunda-zeebe-0",
+        "phase": "Failed"
       },
       "annotations": {
-        "summary": "PersistentVolume {{ $labels.persistentvolume }} em fase de erro: {{ $labels.phase }}",
-        "description": "PersistentVolume {{ $labels.persistentvolume }} está na fase {{ $labels.phase }}\nhá mais de 5 minutos.\nFase Failed/Lost = dados potencialmente inacessíveis.\nVerificar: kubectl describe pv {{ $labels.persistentvolume }}\n",
+        "summary": "PersistentVolume pvc-data-camunda-zeebe-0 em fase de erro: Failed",
+        "description": "PersistentVolume pvc-data-camunda-zeebe-0 está na fase Failed\nhá mais de 5 minutos.\nFase Failed/Lost = dados potencialmente inacessíveis.\nVerificar: kubectl describe pv pvc-data-camunda-zeebe-0\n",
         "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/KubePersistentVolumeErrors"
       },
       "startsAt": "2026-01-01T00:00:00Z",
@@ -29,7 +31,7 @@
     "severity": "critical"
   },
   "commonAnnotations": {
-    "summary": "PersistentVolume {{ $labels.persistentvolume }} em fase de erro: {{ $labels.phase }}"
+    "summary": "PersistentVolume pvc-data-camunda-zeebe-0 em fase de erro: Failed"
   },
   "externalURL": "http://localhost:9093",
   "version": "4",

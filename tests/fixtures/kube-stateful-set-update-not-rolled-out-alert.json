@@ -9,11 +9,12 @@
         "namespace": "camunda",
         "severity": "warning",
         "component": "pod",
-        "team": "platform"
+        "team": "platform",
+        "statefulset": "camunda-zeebe"
       },
       "annotations": {
-        "summary": "StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} com rollout incompleto",
-        "description": "StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} tem atualização pendente\nhá mais de 15 minutos — nem todos os pods foram atualizados para a nova revisão.\nVerificar: kubectl rollout status statefulset/{{ $labels.statefulset }} -n {{ $labels.namespace }}\nkubectl get pods -n {{ $labels.namespace }} -l app={{ $labels.statefulset }} -o wide\n",
+        "summary": "StatefulSet camunda/camunda-zeebe com rollout incompleto",
+        "description": "StatefulSet camunda/camunda-zeebe tem atualização pendente\nhá mais de 15 minutos — nem todos os pods foram atualizados para a nova revisão.\nVerificar: kubectl rollout status statefulset/camunda-zeebe -n camunda\nkubectl get pods -n camunda -l app=camunda-zeebe -o wide\n",
         "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/KubeStatefulSetUpdateNotRolledOut"
       },
       "startsAt": "2026-01-01T00:00:00Z",
@@ -29,7 +30,7 @@
     "severity": "warning"
   },
   "commonAnnotations": {
-    "summary": "StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} com rollout incompleto"
+    "summary": "StatefulSet camunda/camunda-zeebe com rollout incompleto"
   },
   "externalURL": "http://localhost:9093",
   "version": "4",

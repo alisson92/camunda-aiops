@@ -9,11 +9,13 @@
         "namespace": "camunda",
         "severity": "warning",
         "component": "pod",
-        "team": "platform"
+        "team": "platform",
+        "pod": "camunda-zeebe-0",
+        "created_by_kind": "StatefulSet"
       },
       "annotations": {
-        "summary": "Pod {{ $labels.namespace }}/{{ $labels.pod }} não está Ready",
-        "description": "Pod {{ $labels.namespace }}/{{ $labels.pod }} (criado por: {{ $labels.created_by_kind }})\nnão está em estado Ready há mais de 5 minutos.\nVerificar: kubectl describe pod {{ $labels.pod }} -n {{ $labels.namespace }}\n",
+        "summary": "Pod camunda/camunda-zeebe-0 não está Ready",
+        "description": "Pod camunda/camunda-zeebe-0 (criado por: StatefulSet)\nnão está em estado Ready há mais de 5 minutos.\nVerificar: kubectl describe pod camunda-zeebe-0 -n camunda\n",
         "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/KubePodNotReady"
       },
       "startsAt": "2026-01-01T00:00:00Z",
@@ -29,7 +31,7 @@
     "severity": "warning"
   },
   "commonAnnotations": {
-    "summary": "Pod {{ $labels.namespace }}/{{ $labels.pod }} não está Ready"
+    "summary": "Pod camunda/camunda-zeebe-0 não está Ready"
   },
   "externalURL": "http://localhost:9093",
   "version": "4",

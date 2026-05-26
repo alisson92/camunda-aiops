@@ -9,11 +9,12 @@
         "namespace": "camunda",
         "severity": "warning",
         "component": "pod",
-        "team": "platform"
+        "team": "platform",
+        "statefulset": "camunda-zeebe"
       },
       "annotations": {
-        "summary": "StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} com réplicas divergentes",
-        "description": "StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} tem réplicas prontas\ndivergentes do desejado há mais de 5 minutos.\nVerificar pods do StatefulSet: kubectl get pods -n {{ $labels.namespace }} -l app={{ $labels.statefulset }}\n",
+        "summary": "StatefulSet camunda/camunda-zeebe com réplicas divergentes",
+        "description": "StatefulSet camunda/camunda-zeebe tem réplicas prontas\ndivergentes do desejado há mais de 5 minutos.\nVerificar pods do StatefulSet: kubectl get pods -n camunda -l app=camunda-zeebe\n",
         "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/KubeStatefulSetReplicasMismatch"
       },
       "startsAt": "2026-01-01T00:00:00Z",
@@ -29,7 +30,7 @@
     "severity": "warning"
   },
   "commonAnnotations": {
-    "summary": "StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} com réplicas divergentes"
+    "summary": "StatefulSet camunda/camunda-zeebe com réplicas divergentes"
   },
   "externalURL": "http://localhost:9093",
   "version": "4",

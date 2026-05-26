@@ -9,11 +9,13 @@
         "namespace": "camunda",
         "severity": "warning",
         "component": "pod",
-        "team": "platform"
+        "team": "platform",
+        "pod": "camunda-zeebe-0",
+        "container": "zeebe"
       },
       "annotations": {
-        "summary": "Pod {{ $labels.namespace }}/{{ $labels.pod }} com memória > 80% do limit",
-        "description": "Container {{ $labels.container }} no pod {{ $labels.namespace }}/{{ $labels.pod }}\nestá usando {{ $value | humanizePercentage }} do memory limit.\nRisco de OOM kill se o uso continuar crescendo.\n",
+        "summary": "Pod camunda/camunda-zeebe-0 com memória > 80% do limit",
+        "description": "Container zeebe no pod camunda/camunda-zeebe-0\nestá usando 87.3% do memory limit.\nRisco de OOM kill se o uso continuar crescendo.\n",
         "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/KubePodHighMemory"
       },
       "startsAt": "2026-01-01T00:00:00Z",
@@ -29,7 +31,7 @@
     "severity": "warning"
   },
   "commonAnnotations": {
-    "summary": "Pod {{ $labels.namespace }}/{{ $labels.pod }} com memória > 80% do limit"
+    "summary": "Pod camunda/camunda-zeebe-0 com memória > 80% do limit"
   },
   "externalURL": "http://localhost:9093",
   "version": "4",

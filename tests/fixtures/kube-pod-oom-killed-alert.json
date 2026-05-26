@@ -9,11 +9,13 @@
         "namespace": "camunda",
         "severity": "critical",
         "component": "pod",
-        "team": "platform"
+        "team": "platform",
+        "pod": "camunda-zeebe-0",
+        "container": "zeebe"
       },
       "annotations": {
-        "summary": "Pod {{ $labels.namespace }}/{{ $labels.pod }} sofreu OOM kill",
-        "description": "Container {{ $labels.container }} no pod {{ $labels.namespace }}/{{ $labels.pod }}\nfoi terminado por OOM (Out of Memory) na última hora.\nAção imediata: aumentar memory limit ou investigar memory leak.\nkubectl describe pod {{ $labels.pod }} -n {{ $labels.namespace }}\n",
+        "summary": "Pod camunda/camunda-zeebe-0 sofreu OOM kill",
+        "description": "Container zeebe no pod camunda/camunda-zeebe-0\nfoi terminado por OOM (Out of Memory) na última hora.\nAção imediata: aumentar memory limit ou investigar memory leak.\nkubectl describe pod camunda-zeebe-0 -n camunda\n",
         "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/KubePodOOMKilled"
       },
       "startsAt": "2026-01-01T00:00:00Z",
@@ -29,7 +31,7 @@
     "severity": "critical"
   },
   "commonAnnotations": {
-    "summary": "Pod {{ $labels.namespace }}/{{ $labels.pod }} sofreu OOM kill"
+    "summary": "Pod camunda/camunda-zeebe-0 sofreu OOM kill"
   },
   "externalURL": "http://localhost:9093",
   "version": "4",

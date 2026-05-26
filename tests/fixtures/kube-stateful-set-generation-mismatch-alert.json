@@ -9,11 +9,12 @@
         "namespace": "camunda",
         "severity": "warning",
         "component": "pod",
-        "team": "platform"
+        "team": "platform",
+        "statefulset": "camunda-zeebe"
       },
       "annotations": {
-        "summary": "StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} com generation divergente",
-        "description": "StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} tem generation\ndivergente do observado pelo controller há mais de 10 minutos.\nIndica rollout travado ou controller com problema.\nVerificar: kubectl rollout status statefulset/{{ $labels.statefulset }} -n {{ $labels.namespace }}\n",
+        "summary": "StatefulSet camunda/camunda-zeebe com generation divergente",
+        "description": "StatefulSet camunda/camunda-zeebe tem generation\ndivergente do observado pelo controller há mais de 10 minutos.\nIndica rollout travado ou controller com problema.\nVerificar: kubectl rollout status statefulset/camunda-zeebe -n camunda\n",
         "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/KubeStatefulSetGenerationMismatch"
       },
       "startsAt": "2026-01-01T00:00:00Z",
@@ -29,7 +30,7 @@
     "severity": "warning"
   },
   "commonAnnotations": {
-    "summary": "StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} com generation divergente"
+    "summary": "StatefulSet camunda/camunda-zeebe com generation divergente"
   },
   "externalURL": "http://localhost:9093",
   "version": "4",

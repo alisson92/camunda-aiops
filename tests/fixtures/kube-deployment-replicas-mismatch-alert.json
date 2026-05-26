@@ -9,11 +9,12 @@
         "namespace": "camunda",
         "severity": "warning",
         "component": "pod",
-        "team": "platform"
+        "team": "platform",
+        "deployment": "camunda-operate"
       },
       "annotations": {
-        "summary": "Deployment {{ $labels.namespace }}/{{ $labels.deployment }} com réplicas divergentes",
-        "description": "Deployment {{ $labels.namespace }}/{{ $labels.deployment }} tem réplicas disponíveis\ndivergentes do desejado há mais de 5 minutos.\nVerificar: kubectl rollout status deployment/{{ $labels.deployment }} -n {{ $labels.namespace }}\n",
+        "summary": "Deployment camunda/camunda-operate com réplicas divergentes",
+        "description": "Deployment camunda/camunda-operate tem réplicas disponíveis\ndivergentes do desejado há mais de 5 minutos.\nVerificar: kubectl rollout status deployment/camunda-operate -n camunda\n",
         "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/KubeDeploymentReplicasMismatch"
       },
       "startsAt": "2026-01-01T00:00:00Z",
@@ -29,7 +30,7 @@
     "severity": "warning"
   },
   "commonAnnotations": {
-    "summary": "Deployment {{ $labels.namespace }}/{{ $labels.deployment }} com réplicas divergentes"
+    "summary": "Deployment camunda/camunda-operate com réplicas divergentes"
   },
   "externalURL": "http://localhost:9093",
   "version": "4",

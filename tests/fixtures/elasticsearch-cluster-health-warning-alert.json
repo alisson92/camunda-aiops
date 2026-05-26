@@ -9,11 +9,12 @@
         "namespace": "camunda",
         "severity": "warning",
         "component": "elasticsearch",
-        "team": "platform"
+        "team": "platform",
+        "cluster": "camunda-elasticsearch"
       },
       "annotations": {
-        "summary": "Cluster Elasticsearch {{ $labels.cluster }} em status WARNING (yellow)",
-        "description": "O cluster Elasticsearch {{ $labels.cluster }} no namespace {{ $labels.namespace }}\nestá com status amarelo (yellow) por mais de 5 minutos.\nStatus yellow = réplicas não alocadas — resiliência reduzida, sem perda de dados.\nVerificar: capacidade do cluster, nós adicionados recentemente, logs do Elasticsearch.\n",
+        "summary": "Cluster Elasticsearch camunda-elasticsearch em status WARNING (yellow)",
+        "description": "O cluster Elasticsearch camunda-elasticsearch no namespace camunda\nestá com status amarelo (yellow) por mais de 5 minutos.\nStatus yellow = réplicas não alocadas — resiliência reduzida, sem perda de dados.\nVerificar: capacidade do cluster, nós adicionados recentemente, logs do Elasticsearch.\n",
         "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/ElasticsearchClusterHealthWarning"
       },
       "startsAt": "2026-01-01T00:00:00Z",
@@ -29,7 +30,7 @@
     "severity": "warning"
   },
   "commonAnnotations": {
-    "summary": "Cluster Elasticsearch {{ $labels.cluster }} em status WARNING (yellow)"
+    "summary": "Cluster Elasticsearch camunda-elasticsearch em status WARNING (yellow)"
   },
   "externalURL": "http://localhost:9093",
   "version": "4",

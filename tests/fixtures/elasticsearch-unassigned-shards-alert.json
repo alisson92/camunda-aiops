@@ -9,11 +9,12 @@
         "namespace": "camunda",
         "severity": "warning",
         "component": "elasticsearch",
-        "team": "platform"
+        "team": "platform",
+        "cluster": "camunda-elasticsearch"
       },
       "annotations": {
-        "summary": "Elasticsearch {{ $labels.cluster }} com shards não alocados",
-        "description": "O cluster Elasticsearch {{ $labels.cluster }} no namespace {{ $labels.namespace }}\npossui shards não alocados por mais de 10 minutos.\nVerificar: disk watermark, número de réplicas vs nós disponíveis,\nconfiguração de alocação (include/exclude/require).\n",
+        "summary": "Elasticsearch camunda-elasticsearch com shards não alocados",
+        "description": "O cluster Elasticsearch camunda-elasticsearch no namespace camunda\npossui shards não alocados por mais de 10 minutos.\nVerificar: disk watermark, número de réplicas vs nós disponíveis,\nconfiguração de alocação (include/exclude/require).\n",
         "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/ElasticsearchUnassignedShards"
       },
       "startsAt": "2026-01-01T00:00:00Z",
@@ -29,7 +30,7 @@
     "severity": "warning"
   },
   "commonAnnotations": {
-    "summary": "Elasticsearch {{ $labels.cluster }} com shards não alocados"
+    "summary": "Elasticsearch camunda-elasticsearch com shards não alocados"
   },
   "externalURL": "http://localhost:9093",
   "version": "4",

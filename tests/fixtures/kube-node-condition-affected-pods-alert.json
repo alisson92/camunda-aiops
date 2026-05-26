@@ -9,11 +9,15 @@
         "namespace": "camunda",
         "severity": "warning",
         "component": "node",
-        "team": "platform"
+        "team": "platform",
+        "pod": "camunda-zeebe-0",
+        "node": "kind-worker",
+        "condition": "MemoryPressure",
+        "status": "True"
       },
       "annotations": {
-        "summary": "Pod {{ $labels.namespace }}/{{ $labels.pod }} no nó {{ $labels.node }} com condição {{ $labels.condition }}={{ $labels.status }}",
-        "description": "Pod {{ $labels.namespace }}/{{ $labels.pod }} está rodando em nó\ncom condição adversa {{ $labels.condition }}={{ $labels.status }}\ndetectada nos últimos 5 minutos.\n",
+        "summary": "Pod camunda/camunda-zeebe-0 no nó kind-worker com condição MemoryPressure=True",
+        "description": "Pod camunda/camunda-zeebe-0 está rodando em nó\ncom condição adversa MemoryPressure=True\ndetectada nos últimos 5 minutos.\n",
         "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/KubeNodeConditionAffectedPods"
       },
       "startsAt": "2026-01-01T00:00:00Z",
@@ -29,7 +33,7 @@
     "severity": "warning"
   },
   "commonAnnotations": {
-    "summary": "Pod {{ $labels.namespace }}/{{ $labels.pod }} no nó {{ $labels.node }} com condição {{ $labels.condition }}={{ $labels.status }}"
+    "summary": "Pod camunda/camunda-zeebe-0 no nó kind-worker com condição MemoryPressure=True"
   },
   "externalURL": "http://localhost:9093",
   "version": "4",

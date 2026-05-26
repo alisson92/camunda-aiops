@@ -9,11 +9,12 @@
         "namespace": "camunda",
         "severity": "critical",
         "component": "zeebe",
-        "team": "platform"
+        "team": "platform",
+        "persistentvolumeclaim": "data-camunda-zeebe-0"
       },
       "annotations": {
-        "summary": "Zeebe PVC {{ $labels.persistentvolumeclaim }} — uso projetado acima de 85% em 1h",
-        "description": "Projeção de uso: {{ $value | humanizePercentage }} em 1 hora.\nPVC: {{ $labels.persistentvolumeclaim }}.\nDisco cheio no Zeebe causa parada imediata de processamento BPMN.\nAção imediata: verificar compaction do RocksDB ou expandir o PVC.\nkubectl exec -n camunda <pod> -- du -sh /usr/local/zeebe/data\n",
+        "summary": "Zeebe PVC data-camunda-zeebe-0 — uso projetado acima de 85% em 1h",
+        "description": "Projeção de uso: 87.3% em 1 hora.\nPVC: data-camunda-zeebe-0.\nDisco cheio no Zeebe causa parada imediata de processamento BPMN.\nAção imediata: verificar compaction do RocksDB ou expandir o PVC.\nkubectl exec -n camunda <pod> -- du -sh /usr/local/zeebe/data\n",
         "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/ZeebePVCUsagePredictedFull"
       },
       "startsAt": "2026-01-01T00:00:00Z",
@@ -29,7 +30,7 @@
     "severity": "critical"
   },
   "commonAnnotations": {
-    "summary": "Zeebe PVC {{ $labels.persistentvolumeclaim }} — uso projetado acima de 85% em 1h"
+    "summary": "Zeebe PVC data-camunda-zeebe-0 — uso projetado acima de 85% em 1h"
   },
   "externalURL": "http://localhost:9093",
   "version": "4",

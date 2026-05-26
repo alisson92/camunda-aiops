@@ -9,11 +9,13 @@
         "namespace": "camunda",
         "severity": "warning",
         "component": "pod",
-        "team": "platform"
+        "team": "platform",
+        "pod": "camunda-zeebe-0",
+        "container": "zeebe"
       },
       "annotations": {
-        "summary": "Pod {{ $labels.namespace }}/{{ $labels.pod }} com mais de 3 restarts em 2h",
-        "description": "Container {{ $labels.container }} no pod {{ $labels.namespace }}/{{ $labels.pod }}\nreiniciou {{ $value | humanize }} vezes nas últimas 2 horas.\nVerificar: logs, eventos e condição do nó.\n",
+        "summary": "Pod camunda/camunda-zeebe-0 com mais de 3 restarts em 2h",
+        "description": "Container zeebe no pod camunda/camunda-zeebe-0\nreiniciou 0.87 vezes nas últimas 2 horas.\nVerificar: logs, eventos e condição do nó.\n",
         "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/KubePodMultipleRestarts"
       },
       "startsAt": "2026-01-01T00:00:00Z",
@@ -29,7 +31,7 @@
     "severity": "warning"
   },
   "commonAnnotations": {
-    "summary": "Pod {{ $labels.namespace }}/{{ $labels.pod }} com mais de 3 restarts em 2h"
+    "summary": "Pod camunda/camunda-zeebe-0 com mais de 3 restarts em 2h"
   },
   "externalURL": "http://localhost:9093",
   "version": "4",

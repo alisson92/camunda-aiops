@@ -9,11 +9,12 @@
         "namespace": "camunda",
         "severity": "warning",
         "component": "zeebe-gateway",
-        "team": "platform"
+        "team": "platform",
+        "pod": "camunda-zeebe-gateway-0"
       },
       "annotations": {
-        "summary": "Zeebe Gateway {{ $labels.pod }} — latência p99 acima de 2s",
-        "description": "Latência p99 do Gateway: {{ $value | humanizeDuration }}.\nRequests lentos no Gateway impactam workers, Operate e Tasklist.\nInvestigue: backpressure do broker, RocksDB, CPU throttling do pod.\n",
+        "summary": "Zeebe Gateway camunda-zeebe-gateway-0 — latência p99 acima de 2s",
+        "description": "Latência p99 do Gateway: 2.5s.\nRequests lentos no Gateway impactam workers, Operate e Tasklist.\nInvestigue: backpressure do broker, RocksDB, CPU throttling do pod.\n",
         "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/ZeebeGatewayLatencyHigh"
       },
       "startsAt": "2026-01-01T00:00:00Z",
@@ -29,7 +30,7 @@
     "severity": "warning"
   },
   "commonAnnotations": {
-    "summary": "Zeebe Gateway {{ $labels.pod }} — latência p99 acima de 2s"
+    "summary": "Zeebe Gateway camunda-zeebe-gateway-0 — latência p99 acima de 2s"
   },
   "externalURL": "http://localhost:9093",
   "version": "4",

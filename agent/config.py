@@ -50,7 +50,7 @@ AGENT_PUBLIC_URL: str = os.environ.get("AGENT_PUBLIC_URL", "http://localhost:500
 # Palavras-chave que determinam quais alertas o agente processa.
 # Alertas cujo alertname não contiver nenhuma dessas palavras são ignorados.
 # Separadas por vírgula: ALERT_FILTER_KEYWORDS=Zeebe,Camunda,Operate
-_raw_keywords = os.environ.get("ALERT_FILTER_KEYWORDS", "Zeebe,Camunda")
+_raw_keywords = os.environ.get("ALERT_FILTER_KEYWORDS", "Zeebe,Camunda,Kube,Elasticsearch")
 ALERT_FILTER_KEYWORDS: list[str] = [kw.strip() for kw in _raw_keywords.split(",") if kw.strip()]
 
 # --- Logging ---

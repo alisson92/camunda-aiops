@@ -9,11 +9,12 @@
         "namespace": "camunda",
         "severity": "warning",
         "component": "node",
-        "team": "platform"
+        "team": "platform",
+        "node": "kind-worker"
       },
       "annotations": {
-        "summary": "Nó {{ $labels.node }} com padrão de scheduling alterado",
-        "description": "Nó {{ $labels.node }} tinha pods há 5 minutos mas não os tem agora\ne não consta em kube_node_info. Pode indicar nó efêmero ou eviction em massa.\n",
+        "summary": "Nó kind-worker com padrão de scheduling alterado",
+        "description": "Nó kind-worker tinha pods há 5 minutos mas não os tem agora\ne não consta em kube_node_info. Pode indicar nó efêmero ou eviction em massa.\n",
         "runbook_url": "http://172.18.0.1:5001/runbook/by-alert/KubeNewNode"
       },
       "startsAt": "2026-01-01T00:00:00Z",
@@ -29,7 +30,7 @@
     "severity": "warning"
   },
   "commonAnnotations": {
-    "summary": "Nó {{ $labels.node }} com padrão de scheduling alterado"
+    "summary": "Nó kind-worker com padrão de scheduling alterado"
   },
   "externalURL": "http://localhost:9093",
   "version": "4",
