@@ -65,7 +65,9 @@ deploy: ## Fluxo completo: build → kind-load → apply → aguarda pod pronto 
 	@echo "[3/5] Verificando Secret..."
 	@kubectl get secret camunda-aiops-secret -n camunda > /dev/null 2>&1 || \
 	  (echo "ERRO: Secret 'camunda-aiops-secret' não encontrado." && \
-	   echo "      Execute antes: kubectl apply -f deploy/secret.yaml -n camunda" && exit 1)
+	   echo "      cp deploy/secret.example.yaml deploy/secret.yaml" && \
+	   echo "      # edite deploy/secret.yaml com os valores reais" && \
+	   echo "      kubectl apply -f deploy/secret.yaml -n camunda" && exit 1)
 	@echo "[3/5] Aplicando manifests (PVC, Deployment, Service, CronJob)..."
 	@kubectl apply -k deploy/
 	@echo "[4/5] Forçando rollout para garantir nova imagem..."

@@ -26,6 +26,9 @@ Thumbs.db
 .env.*
 !.env.example
 
+# Secret Kubernetes com valores reais (nunca commitar)
+deploy/secret.yaml
+
 # Claude Code — configuração local com secrets (tokens de service account)
 .claude/settings.local.json
 
