@@ -107,19 +107,19 @@ class TestAlertCycleE2E:
         teams_payload = json.loads(teams_reqs[0].data)
         assert "ZeebeMemoryPredictedHigh" in json.dumps(teams_payload)
 
-    def test_non_camunda_alert_is_filtered_before_agent(self, e2e_client):
+    def test_alert_without_agentia_goes_direct_to_teams(self, e2e_client):
         """
-        Alerta não-Camunda deve ser filtrado pelo webhook receiver:
-        nem o LLM nem o Teams devem ser acionados.
+        Alerta sem label agentia=true deve ir direto ao Teams sem passar pelo LLM.
+        queued==1 (enfileirado para notificação direta), LLM não acionado, Teams acionado.
         """
         client, httpserver = e2e_client
 
         response = client.post("/webhook", json=NON_CAMUNDA_ALERT_PAYLOAD)
 
         assert response.status_code == 202
-        assert response.json()["queued"] == 0
+        assert response.json()["queued"] == 1
         assert len(self._llm_requests(httpserver)) == 0
-        assert len(self._teams_requests(httpserver)) == 0
+        assert len(self._teams_requests(httpserver)) == 1
 
     def test_analysis_text_reaches_teams_card(self, e2e_client):
         """
