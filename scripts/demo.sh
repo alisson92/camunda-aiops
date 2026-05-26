@@ -388,42 +388,44 @@ print(json.dumps(data))
 
     # Aceita qualquer 2xx (200 = agente antigo síncrono, 202 = agente assíncrono atual)
     if [[ "${http_code}" =~ ^2 ]]; then
-        echo "${body}" | python3 -c "
-import json, sys
-try:
-    data = json.load(sys.stdin)
-    queued = data.get('queued', -1)
+        # Extrai campos individualmente para evitar mistura de variáveis bash e Python f-strings
+        local queued analyses_count msg
+        queued=$(echo "${body}" | python3 -c \
+            "import json,sys; d=json.load(sys.stdin); print(d.get('queued',-1))" 2>/dev/null || echo "-1")
+        msg=$(echo "${body}" | python3 -c \
+            "import json,sys; d=json.load(sys.stdin); print(d.get('message',''))" 2>/dev/null || echo "")
+        analyses_count=$(echo "${body}" | python3 -c \
+            "import json,sys; d=json.load(sys.stdin); print(len(d.get('analyses',[])))" 2>/dev/null || echo "0")
 
-    if queued > 0:
-        # Formato novo (agente assíncrono): alerta aceito e enfileirado
-        print(f'  \033[0;32m✔\033[0m HTTP ${http_code} — {queued} alerta(s) enfileirado(s) para análise')
-        print('  \033[0;36m→\033[0m Processando em background → aguarde o card no Microsoft Teams')
-    elif queued == 0:
-        # Alerta filtrado por ALERT_FILTER_KEYWORDS ou deduplicado
-        msg = data.get('message', '')
-        print(f'  \033[1;33m⚠\033[0m  HTTP ${http_code} — nenhum alerta processado (filtrado ou deduplicado)')
-        if msg:
-            print(f'  \033[0;36m→\033[0m {msg}')
-        print('  \033[0;36m→\033[0m Dica: verifique ALERT_FILTER_KEYWORDS em agent/.env')
-    else:
-        # Backward compat: agente antigo síncrono (campo 'analyses')
-        analyses = data.get('analyses', [])
-        if analyses:
-            print(f'  \033[0;32m✔\033[0m HTTP ${http_code} — webhook processado')
-            print()
-            print('  Análise do agente:')
-            text = analyses[0].get('analysis', '')
-            for line in text.split('\n')[:6]:
-                print(f'  {line}')
-            if len(text.split('\n')) > 6:
-                print('  ...')
-        else:
-            print(f'  \033[1;33m⚠\033[0m  HTTP ${http_code} — resposta inesperada (sem campo queued nem analyses)')
-            print(f'  \033[0;36m→\033[0m corpo: {str(data)[:120]}')
-except Exception as e:
-    print(f'  \033[1;33m⚠\033[0m  Não foi possível interpretar a resposta: {e}')
-    print(f'  \033[0;36m→\033[0m corpo raw: ${body[:200]}')
+        if [[ "${queued}" -gt 0 ]]; then
+            # Agente assíncrono (202): alerta aceito e enfileirado
+            log_ok "HTTP ${http_code} — ${queued} alerta(s) enfileirado(s) para análise"
+            log_info "Processando em background → aguarde o card no Microsoft Teams"
+        elif [[ "${queued}" -eq 0 ]]; then
+            # Alerta filtrado por ALERT_FILTER_KEYWORDS ou deduplicado
+            log_warn "HTTP ${http_code} — nenhum alerta processado (filtrado ou deduplicado)"
+            [[ -n "${msg}" ]] && log_info "${msg}"
+            log_info "Verifique ALERT_FILTER_KEYWORDS em agent/.env"
+        elif [[ "${analyses_count}" -gt 0 ]]; then
+            # Backward compat: agente antigo síncrono (campo 'analyses')
+            log_ok "HTTP ${http_code} — webhook processado"
+            echo "${body}" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+analyses = data.get('analyses', [])
+if analyses:
+    print()
+    print('  Análise do agente:')
+    text = analyses[0].get('analysis', '')
+    for line in text.split('\n')[:6]:
+        print(f'  {line}')
+    if len(text.split('\n')) > 6:
+        print('  ...')
 " 2>/dev/null || true
+        else
+            log_warn "HTTP ${http_code} — resposta sem campo 'queued' nem 'analyses'"
+            log_info "Corpo: $(echo "${body}" | cut -c1-150)"
+        fi
     else
         log_error "HTTP ${http_code} — erro no webhook"
         echo "${body}"
