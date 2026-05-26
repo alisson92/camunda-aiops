@@ -12,9 +12,15 @@ PYTHON := .venv/bin/python
 PYTEST  := .venv/bin/pytest
 RUFF    := .venv/bin/ruff
 
+IMAGE_NAME   := camunda-aiops-agent
+IMAGE_TAG    := latest
+KIND_CLUSTER := camunda-platform-local
+
 .PHONY: run test test-integration test-e2e smoke demo lint \
         port-forward check-metrics check-pod-metrics import-dashboard load \
-        cycle-test cycle-test-fast generate-fixtures help
+        cycle-test cycle-test-fast generate-fixtures \
+        build kind-load k8s-apply k8s-delete k8s-logs k8s-status \
+        help
 
 # ── Agente ─────────────────────────────────────────────────────────────────────
 
@@ -48,6 +54,28 @@ demo-%: ## Demo de um cenário específico: make demo-zeebe | demo-namespace | d
 
 generate-fixtures: ## Gera fixtures Alertmanager a partir de alerting/*.yaml (idempotente)
 	$(PYTHON) scripts/generate-fixtures.py
+
+# ── Docker / Kubernetes ────────────────────────────────────────────────────────
+
+build: ## Build da imagem Docker do agente
+	docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .
+
+kind-load: ## Carrega a imagem no cluster Kind (sem necessidade de registry externo)
+	kind load docker-image $(IMAGE_NAME):$(IMAGE_TAG) --name $(KIND_CLUSTER)
+
+k8s-apply: ## Aplica Deployment, Service, PVC e CronJob no cluster (cria o Secret antes)
+	kubectl apply -k deploy/
+
+k8s-delete: ## Remove Deployment, Service e CronJob (PVC e Secret são mantidos)
+	kubectl delete deployment camunda-aiops-agent -n camunda --ignore-not-found
+	kubectl delete service    camunda-aiops-agent -n camunda --ignore-not-found
+	kubectl delete cronjob    camunda-aiops-data-cleanup -n camunda --ignore-not-found
+
+k8s-logs: ## Acompanha os logs do agente em tempo real
+	kubectl logs -n camunda -l app=camunda-aiops-agent -f --tail=100
+
+k8s-status: ## Exibe status de Pod, Service, PVC e CronJob do agente
+	kubectl get pod,svc,pvc,cronjob -n camunda -l app=camunda-aiops-agent
 
 # ── Qualidade ──────────────────────────────────────────────────────────────────
 

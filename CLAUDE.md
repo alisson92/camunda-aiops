@@ -55,6 +55,20 @@ kubectl get secret -n monitoring kube-prometheus-stack-grafana \
 ## Comandos principais
 
 ```bash
+# ── Deploy no Kind (fluxo completo) ────────────────────────────────────────────
+make build                       # build da imagem Docker
+make kind-load                   # carrega a imagem no cluster Kind (sem registry)
+# Preencher deploy/secret.yaml com valores reais antes de aplicar:
+kubectl apply -f deploy/secret.yaml -n camunda
+make k8s-apply                   # aplica PVC, Deployment, Service e CronJob
+make k8s-status                  # verifica Pod, Service, PVC e CronJob
+make k8s-logs                    # acompanha logs em tempo real
+make k8s-delete                  # remove Deployment/Service/CronJob (mantém PVC e Secret)
+
+# Webhook disponível no NodePort após deploy: http://localhost:30501/webhook
+# Configurar no Alertmanager: receivers[].webhook_configs[].url = http://localhost:30501/webhook
+
+# ── Modo desenvolvimento local (sem Kind) ──────────────────────────────────────
 # Iniciar o agente (webhook receiver na porta 5001)
 make run
 
@@ -66,7 +80,7 @@ make demo-backpressure           # ZeebeBackpressureGrowing (critical — maior 
 make demo-resolved               # alerta encerrado (lifecycle completo)
 
 # Testes
-make test                        # 224 testes unitários + cobertura 100%
+make test                        # 223 testes unitários + cobertura 100%
 make test-integration            # Prometheus real via Testcontainers
 make test-e2e                    # ciclo completo com mock HTTP
 
@@ -97,15 +111,17 @@ Dashboard após import: `http://localhost:3000/d/camunda-local-forecasting/`
 ```
 agent/            Pacote Python do agente AIOps (config, tools, notifier, webhook, metrics)
 prompts/          System prompts versionados (v1, v2, ...) + GUIDELINES.md
+deploy/           Manifests Kubernetes: pvc.yaml, deployment.yaml, service.yaml, cronjob.yaml, secret.yaml, kustomization.yaml
 scripts/          Scripts operacionais: generate-fixtures, demo, check-metrics, load-generator, import-dashboard
 dashboards/       camunda-forecasting.json (forecasting) + camunda-aiops-agent.json (observabilidade do agente)
 alerting/         7 PrometheusRule CRDs: Camunda, Elasticsearch, Kubernetes nós/pods
 tests/
-  unit/           224 testes unitários (sem infraestrutura)
+  unit/           223 testes unitários (sem infraestrutura)
   integration/    7 testes — Prometheus real via Testcontainers
   e2e/            3 testes — ciclo completo: webhook → agente → Prometheus → LLM → Teams
   fixtures/       24 payloads JSON — 4 curados + 20 gerados por generate-fixtures.py
 docs/             Documentação: etapas, fixes, decisões técnicas
+Dockerfile        Build da imagem do agente (python:3.11-slim, usuário não-root, porta 5001)
 ```
 
 **Fluxo do webhook (assíncrono):**
@@ -173,8 +189,10 @@ prometheus:
 | 11 | Runbook generation automático | ✅ Concluída |
 | 12 | Few-shot + RAG com histórico de incidentes | ✅ Concluída |
 | 13 | Fixtures dinâmicos, deduplicação por fingerprint e webhook assíncrono | ✅ Concluída |
-| 14 | Pipeline Prophet para sazonalidade | ⏳ Longo prazo |
-| 15 | Few-shot com exemplos curados por severidade | ⏳ Próxima |
+| 14 | Filtro por label `agentia: true` + notificação direta para demais alertas | ✅ Concluída |
+| 15 | Dockerfile + deploy Kubernetes com PVC (Kind local → EKS produção) | ✅ Concluída |
+| 16 | Serialização do `_runbooks` dict em disco (JSON) para sobreviver restart sem PVC | ⏳ Próxima |
+| 17 | Pipeline Prophet para sazonalidade | ⏳ Longo prazo |
 
 ---
 

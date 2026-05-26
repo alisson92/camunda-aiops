@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Aplicar com: kubectl apply -k deploy/
+# Pré-requisito: criar o Secret manualmente antes (não versionado com valores reais):
+#   kubectl apply -f deploy/secret.yaml -n camunda
+
+resources:
+  - pvc.yaml
+  - deployment.yaml
+  - service.yaml
+  - cronjob.yaml

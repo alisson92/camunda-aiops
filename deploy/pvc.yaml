@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: camunda-aiops-data
+  namespace: camunda
+  labels:
+    app: camunda-aiops-agent
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # Kind local: storageClassName "standard" usa o local-path-provisioner embutido.
+  # EKS produção: substituir por "gp2" ou "gp3" (EBS CSI driver).
+  storageClassName: standard
+  resources:
+    requests:
+      # ~1,5 MB/mês (10 alertas/dia × 5 KB/runbook); 1 Gi cobre anos de operação.
+      storage: 1Gi

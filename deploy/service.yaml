@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: camunda-aiops-agent
+  namespace: camunda
+  labels:
+    app: camunda-aiops-agent
+spec:
+  selector:
+    app: camunda-aiops-agent
+  ports:
+    - name: http
+      port: 5001
+      targetPort: 5001
+      # NodePort: acesso externo ao Kind sem Ingress.
+      # http://localhost:30501/health
+      # http://localhost:30501/webhook  ← URL para o Alertmanager
+      # EKS produção: remover nodePort e trocar type para ClusterIP + Ingress ALB
+      nodePort: 30501
+  type: NodePort

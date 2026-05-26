@@ -1,0 +1,38 @@
+# Ferramentas de desenvolvimento
+.venv/
+*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+
+# Controle de versão
+.git/
+.gitignore
+
+# Testes e documentação (não executados no container)
+tests/
+docs/
+CHANGELOG.md
+CONTRIBUTING.md
+README.md
+
+# Scripts operacionais (executados do host, não do container)
+scripts/
+
+# Dashboards e alertas (aplicados via kubectl/API, não pelo agente)
+dashboards/
+alerting/
+
+# Secrets e configuração local (nunca entram na imagem)
+.env*
+agent/.env
+
+# Runbooks gerados em runtime (provisionados via PVC no cluster)
+data/knowledge/runbooks/
+
+# Artefatos temporários
+test-results.log
+*.log
+camunda_aiops.egg-info/

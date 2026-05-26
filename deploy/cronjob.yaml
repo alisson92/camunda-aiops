@@ -1,0 +1,53 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: camunda-aiops-data-cleanup
+  namespace: camunda
+  labels:
+    app: camunda-aiops-agent
+    component: cleanup
+spec:
+  # Domingo às 02h00 UTC — ajuste conforme política de retenção do time
+  schedule: "0 2 * * 0"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  # Evita execuções concorrentes se um job anterior ainda estiver rodando
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: camunda-aiops-agent
+            component: cleanup
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: cleanup
+              image: busybox:1.36
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+                  TARGET="/data"
+                  COUNT=$(find "$TARGET" -mtime +30 -name "*.md" | wc -l)
+                  echo "Removendo ${COUNT} runbook(s) com mais de 30 dias..."
+                  find "$TARGET" -mtime +30 -name "*.md" -delete
+                  REMAINING=$(find "$TARGET" -name "*.md" | wc -l)
+                  echo "Limpeza concluída. ${REMAINING} runbook(s) retidos."
+              volumeMounts:
+                # Monta o PVC diretamente — /data equivale a data/knowledge/runbooks do agente
+                - name: agent-data
+                  mountPath: /data
+              resources:
+                requests:
+                  cpu: "50m"
+                  memory: "32Mi"
+                limits:
+                  cpu: "100m"
+                  memory: "64Mi"
+          volumes:
+            - name: agent-data
+              persistentVolumeClaim:
+                claimName: camunda-aiops-data

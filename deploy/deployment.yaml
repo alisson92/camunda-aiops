@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: camunda-aiops-agent
+  namespace: camunda
+  labels:
+    app: camunda-aiops-agent
+spec:
+  # Manter replicas: 1 enquanto PVC usar ReadWriteOnce — RWO não permite múltiplos pods.
+  # Escalar horizontalmente requer migrar o PVC para ReadWriteMany (NFS/EFS) ou trocar por S3/PostgreSQL.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: camunda-aiops-agent
+  template:
+    metadata:
+      labels:
+        app: camunda-aiops-agent
+    spec:
+      # WSL2 + Kind: descomente para que o pod resolva "host.docker.internal" → IP do host.
+      # Obtenha o IP com: ip route | grep default | awk '{print $3}'
+      # hostAliases:
+      #   - ip: "172.17.0.1"
+      #     hostnames:
+      #       - "host.docker.internal"
+      containers:
+        - name: agent
+          image: camunda-aiops-agent:latest
+          # Never: Kind não faz pull de registries externos — imagem carregada via 'make kind-load'
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 5001
+          # Variáveis sensíveis (TEAMS_WEBHOOK_URL, OLLAMA_BASE_URL) vêm do Secret
+          envFrom:
+            - secretRef:
+                name: camunda-aiops-secret
+          # Variáveis de infraestrutura — usando DNS interno do cluster (sem port-forward)
+          env:
+            - name: AGENT_PUBLIC_URL
+              # NodePort: substitua pelo IP do nó Kind se precisar de links externos do Teams
+              value: "http://camunda-aiops-agent.camunda.svc.cluster.local:5001"
+            - name: ALERTMANAGER_URL
+              value: "http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093"
+            - name: PROMETHEUS_URL
+              value: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090"
+          volumeMounts:
+            # Monta apenas o subdiretório de runbooks gerados — exemplos curados ficam na imagem
+            - name: agent-data
+              mountPath: /app/data/knowledge/runbooks
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5001
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5001
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+      volumes:
+        - name: agent-data
+          persistentVolumeClaim:
+            claimName: camunda-aiops-data

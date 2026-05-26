@@ -8,6 +8,17 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added (deploy Kubernetes + persistência PVC)
+- `Dockerfile` — build do agente: base `python:3.11-slim`, usuário não-root `aiops`, curated examples baked na imagem, `WORKDIR /app/agent`, healthcheck via `/health`, expõe porta 5001
+- `.dockerignore` — exclui testes, docs, scripts, dashboards, alertas, `.venv`, runbooks gerados em runtime e secrets
+- `deploy/pvc.yaml` — PersistentVolumeClaim `camunda-aiops-data` (1 Gi, `storageClassName: standard` para Kind; EKS: `gp2`/`gp3`)
+- `deploy/deployment.yaml` — Deployment com volumeMount em `/app/data/knowledge/runbooks` (apenas runbooks gerados no PVC, exemplos curados ficam na imagem); `imagePullPolicy: Never` para Kind; probes readiness/liveness em `/health`; resources definidos; comentário para `hostAliases` (Ollama no host WSL2)
+- `deploy/service.yaml` — NodePort 30501 para acesso externo ao Kind sem Ingress (EKS: migrar para ClusterIP + ALB Ingress)
+- `deploy/cronjob.yaml` — CronJob semanal (domingo 02h) que remove runbooks com mais de 30 dias do PVC; `busybox:1.36`, `concurrencyPolicy: Forbid`
+- `deploy/secret.yaml` — template comentado com todas as variáveis sensíveis; não contém valores reais
+- `deploy/kustomization.yaml` — `kubectl apply -k deploy/` aplica PVC, Deployment, Service e CronJob em uma operação
+- Makefile: targets `build`, `kind-load`, `k8s-apply`, `k8s-delete`, `k8s-logs`, `k8s-status`; variáveis `IMAGE_NAME`, `IMAGE_TAG`, `KIND_CLUSTER`
+
 ### Added
 - `agent/webhook_receiver.py`: `_notify_direct()` — path de notificação direta para alertas sem `agentia=true`; monta card Teams com as informações da própria regra (labels/annotations) sem chamar LLM, runbook ou RAG
 - `agent/metrics.py`: contador `aiops_alerts_direct_total` — rastreia notificações diretas (sem LLM) separadamente das analisadas pelo agente
