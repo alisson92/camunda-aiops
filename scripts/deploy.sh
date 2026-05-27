@@ -209,7 +209,7 @@ else
 
             # Confirma entrega no Teams via log do pod
             NOTIFIED=$(kubectl logs -n camunda -l app=camunda-aiops-agent --tail=100 2>/dev/null \
-                | grep -c "Notificação enviada" || echo "0")
+                | grep -c "Notificação enviada")
             if [ "${NOTIFIED}" -ge 1 ]; then
                 ok "Teams notificado com sucesso (${NOTIFIED} notificação(ões) no log do pod)."
             else
