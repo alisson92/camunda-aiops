@@ -149,10 +149,12 @@ if [ ! -f "$FIXTURE" ]; then
     info "Fixture não encontrado — execute 'make generate-fixtures' e re-deploy."
     info "Pulando validação do ciclo."
 else
-    # Captura baseline de aiops_alerts_processed_total antes de enviar
+    # Captura baseline de aiops_alerts_processed_total antes de enviar.
+    # A métrica tem labels: aiops_alerts_processed_total{alertname="..."} 1.0
+    # grep sem espaço após o nome para casar com '{' que precede os labels.
     BASELINE=$(curl -sf "$METRICS_URL" 2>/dev/null \
-        | grep '^aiops_alerts_processed_total ' \
-        | awk '{print int($2)}' || echo "0")
+        | grep '^aiops_alerts_processed_total{' \
+        | awk '{sum += int($NF)} END {print sum+0}' || echo "0")
 
     info "Enviando fixture ao webhook do pod (${WEBHOOK_URL})..."
     HTTP_STATUS=$(curl -s -o "$WEBHOOK_RESP" -w "%{http_code}" \
@@ -179,8 +181,8 @@ else
     for idx in $(seq 1 24); do
         METRICS=$(curl -sf "$METRICS_URL" 2>/dev/null || echo "")
         PROCESSED=$(echo "$METRICS" \
-            | grep '^aiops_alerts_processed_total ' \
-            | awk '{print int($2)}' || echo "0")
+            | grep '^aiops_alerts_processed_total{' \
+            | awk '{sum += int($NF)} END {print sum+0}' || echo "0")
         if [ "${PROCESSED}" -gt "${BASELINE}" ]; then
             break
         fi
