@@ -32,38 +32,34 @@ ok()   { echo -e "  ${GREEN}✔${RESET} $1"; }
 info() { echo -e "  ${CYAN}→${RESET} $1"; }
 err()  { echo -e "  ${RED}✖${RESET} $1" >&2; }
 
-# ── Pre-flight: Ollama acessível pelo IP do host ──────────────────────────────
-# Pods Kind não conseguem usar 'localhost' — precisam do IP do gateway WSL2.
+# ── Pre-flight: Ollama acessível pelo IP da bridge Docker ─────────────────────
+# Pods Kind são containers Docker — alcançam o host WSL2 via IP da bridge Docker
+# (172.17.0.1), não via gateway padrão (que é o Windows Host, não o WSL2).
 # Ollama deve escutar em 0.0.0.0 (não só 127.0.0.1).
-# Correção permanente: sudo systemctl edit ollama
-#   [Service]
-#   Environment="OLLAMA_HOST=0.0.0.0"
-echo -e "\n${BOLD}${CYAN}[pre-flight] Verificando Ollama no IP do host${RESET}"
+# Correção permanente: sudo systemctl edit ollama → Environment="OLLAMA_HOST=0.0.0.0"
+echo -e "\n${BOLD}${CYAN}[pre-flight] Verificando Ollama na bridge Docker${RESET}"
 
-HOST_IP=$(ip route show default 2>/dev/null | awk '/default/ {print $3; exit}')
+DOCKER_HOST_IP=$(ip addr show docker0 2>/dev/null | awk '/inet / {split($2,a,"/"); print a[1]; exit}')
 
-if [ -z "$HOST_IP" ]; then
-    err "Não foi possível detectar o IP do host via rota padrão."
+if [ -z "$DOCKER_HOST_IP" ]; then
+    err "Interface docker0 não encontrada — Docker está rodando?"
     exit 1
 fi
 
-if curl -sf "http://${HOST_IP}:11434/api/tags" -o /dev/null 2>/dev/null; then
-    ok "Ollama acessível em http://${HOST_IP}:11434 (interface correta para pods Kind)."
+if curl -sf "http://${DOCKER_HOST_IP}:11434/api/tags" -o /dev/null 2>/dev/null; then
+    ok "Ollama acessível em http://${DOCKER_HOST_IP}:11434 (bridge Docker — visível aos pods Kind)."
 else
-    err "Ollama não responde em http://${HOST_IP}:11434"
+    err "Ollama não responde em http://${DOCKER_HOST_IP}:11434"
     echo ""
-    echo "  O Ollama está escutando apenas em 127.0.0.1 (localhost)."
-    echo "  Pods Kind não conseguem alcançar localhost do host — usam o IP do gateway."
+    echo "  O Ollama está escutando apenas em 127.0.0.1."
+    echo "  Pods Kind usam a bridge Docker (${DOCKER_HOST_IP}) para alcançar o host WSL2."
     echo ""
     echo "  Correção permanente (recomendada):"
-    echo -e "  ${BOLD}sudo systemctl edit ollama${RESET}"
-    echo "    # adicione:"
+    echo -e "  ${BOLD}sudo EDITOR=vim systemctl edit ollama${RESET}"
+    echo "    # adicione no editor:"
     echo "    [Service]"
     echo "    Environment=\"OLLAMA_HOST=0.0.0.0\""
-    echo -e "  ${BOLD}sudo systemctl restart ollama${RESET}"
-    echo ""
-    echo "  Correção temporária (sessão atual):"
-    echo -e "  ${BOLD}OLLAMA_HOST=0.0.0.0 ollama serve${RESET}"
+    echo -e "  ${BOLD}sudo systemctl daemon-reload && sudo systemctl restart ollama${RESET}"
     echo ""
     exit 1
 fi
