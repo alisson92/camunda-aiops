@@ -32,6 +32,42 @@ ok()   { echo -e "  ${GREEN}✔${RESET} $1"; }
 info() { echo -e "  ${CYAN}→${RESET} $1"; }
 err()  { echo -e "  ${RED}✖${RESET} $1" >&2; }
 
+# ── Pre-flight: Ollama acessível pelo IP do host ──────────────────────────────
+# Pods Kind não conseguem usar 'localhost' — precisam do IP do gateway WSL2.
+# Ollama deve escutar em 0.0.0.0 (não só 127.0.0.1).
+# Correção permanente: sudo systemctl edit ollama
+#   [Service]
+#   Environment="OLLAMA_HOST=0.0.0.0"
+echo -e "\n${BOLD}${CYAN}[pre-flight] Verificando Ollama no IP do host${RESET}"
+
+HOST_IP=$(ip route show default 2>/dev/null | awk '/default/ {print $3; exit}')
+
+if [ -z "$HOST_IP" ]; then
+    err "Não foi possível detectar o IP do host via rota padrão."
+    exit 1
+fi
+
+if curl -sf "http://${HOST_IP}:11434/api/tags" -o /dev/null 2>/dev/null; then
+    ok "Ollama acessível em http://${HOST_IP}:11434 (interface correta para pods Kind)."
+else
+    err "Ollama não responde em http://${HOST_IP}:11434"
+    echo ""
+    echo "  O Ollama está escutando apenas em 127.0.0.1 (localhost)."
+    echo "  Pods Kind não conseguem alcançar localhost do host — usam o IP do gateway."
+    echo ""
+    echo "  Correção permanente (recomendada):"
+    echo -e "  ${BOLD}sudo systemctl edit ollama${RESET}"
+    echo "    # adicione:"
+    echo "    [Service]"
+    echo "    Environment=\"OLLAMA_HOST=0.0.0.0\""
+    echo -e "  ${BOLD}sudo systemctl restart ollama${RESET}"
+    echo ""
+    echo "  Correção temporária (sessão atual):"
+    echo -e "  ${BOLD}OLLAMA_HOST=0.0.0.0 ollama serve${RESET}"
+    echo ""
+    exit 1
+fi
+
 # ── 1. Build ──────────────────────────────────────────────────────────────────
 step "1/9" "Build da imagem ${IMAGE_NAME}:${IMAGE_TAG}"
 docker build -t "${IMAGE_NAME}:${IMAGE_TAG}" "${PROJECT_DIR}"
