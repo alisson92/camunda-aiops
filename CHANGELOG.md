@@ -8,6 +8,12 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed (conectividade Ollama no cluster + detecção de métrica)
+- `scripts/deploy.sh`: pre-flight corrigido — usava `ip route default` (retorna Windows Host `172.23.208.1`, não o WSL2) em vez de `ip addr show docker0` (bridge Docker `172.17.0.1`, estável e acessível de todos os pods Kind)
+- `scripts/deploy.sh`: grep da métrica `aiops_alerts_processed_total` corrigido — a métrica tem labels Prometheus (`{alertname="...",severity="..."}`) então o padrão com espaço nunca casava; trocado para `^aiops_alerts_processed_total{` com `awk '{sum += int($NF)}'`; PROCESSED ficava sempre 0 mesmo com o ciclo LLM concluído
+- `deploy/secret.example.yaml`: documenta `172.17.0.1` como IP correto para `OLLAMA_BASE_URL` com explicação da topologia WSL2 (Windows Host ≠ WSL2 VM ≠ bridge Docker)
+- Ollama: deve escutar em `0.0.0.0` para ser acessível pelo cluster — correção permanente via `sudo EDITOR=vim systemctl edit ollama` adicionando `Environment="OLLAMA_HOST=0.0.0.0"` no override systemd
+
 ### Fixed (deploy-fast sem cobertura real do ciclo)
 - `scripts/deploy.sh`: adicionado passo 9/9 — envia fixture `zeebe-backpressure-growing-alert.json` ao NodePort do pod, aguarda `aiops_alerts_processed_total` incrementar (LLM processou) e confirma via `kubectl logs` que a notificação Teams foi entregue; usa baseline pré-envio para não confundir com contadores de deploys anteriores
 - `Makefile`: `deploy-fast` removeu chamada a `make smoke` — validação do ciclo já está incorporada no `deploy.sh`; `smoke` permanece como plumbing para quem quiser testar o canal Teams isoladamente
