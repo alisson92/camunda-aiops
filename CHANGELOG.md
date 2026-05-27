@@ -8,6 +8,9 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed (erro integer expression no passo 9/9 do deploy)
+- `scripts/deploy.sh`: `grep -c` sempre imprime um número (mesmo `0`) e sai com código 1 quando não há matches — o `|| echo "0"` era disparado e `NOTIFIED` ficava com duas linhas (`"0\n0"`), causando `integer expression expected` no `[ -ge 1 ]`; removido o fallback desnecessário
+
 ### Fixed (deduplicação no passo 9/9 do deploy)
 - `scripts/deploy.sh`: passo 9/9 tratava `queued=0` como falha, mas esse valor indica deduplicação ativa (mesmo fingerprint dentro do TTL de 300s) — comportamento correto; o script agora distingue os dois casos: `queued=0` valida via histórico (`processed >= 1` confirma ciclo LLM anterior), `queued=1` aguarda o LLM por até 120s (comportamento anterior mantido)
 
