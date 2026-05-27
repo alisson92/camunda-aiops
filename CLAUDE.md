@@ -193,8 +193,9 @@ prometheus:
 | 13 | Fixtures dinâmicos, deduplicação por fingerprint e webhook assíncrono | ✅ Concluída |
 | 14 | Filtro por label `agentia: true` + notificação direta para demais alertas | ✅ Concluída |
 | 15 | Dockerfile + deploy Kubernetes com PVC (Kind local → EKS produção) | ✅ Concluída |
-| 16 | Serialização do `_runbooks` dict em disco (JSON) para sobreviver restart sem PVC | ⏳ Próxima |
-| 17 | Pipeline Prophet para sazonalidade | ⏳ Longo prazo |
+| 16 | Separação deploy/demo: `scripts/deploy.sh`, `make deploy-fast`, cluster-aware `run-cycle-test.sh` | ✅ Concluída |
+| 17 | Serialização do `_runbooks` dict em disco (JSON) para sobreviver restart sem PVC | ⏳ Próxima |
+| 18 | Pipeline Prophet para sazonalidade | ⏳ Longo prazo |
 
 ---
 

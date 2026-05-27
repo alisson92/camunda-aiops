@@ -264,6 +264,30 @@ done
 log_ok "Namespaces camunda e monitoring presentes."
 
 # =============================================================================
+# Detecção de modo: agente no cluster (make deploy) vs local (make run)
+# =============================================================================
+AGENT_IN_CLUSTER=false
+CLUSTER_NODE_IP=""
+AGENT_WEBHOOK="http://localhost:5001/webhook"
+AGENT_HEALTH_URL="http://localhost:5001/health"
+
+if kubectl get pod -n camunda -l app=camunda-aiops-agent 2>/dev/null \
+   | grep -q "Running"; then
+    AGENT_IN_CLUSTER=true
+    CLUSTER_NODE_IP=$(kubectl get nodes \
+      -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' \
+      2>/dev/null || echo "")
+    if [ -n "$CLUSTER_NODE_IP" ]; then
+        AGENT_WEBHOOK="http://${CLUSTER_NODE_IP}:30501/webhook"
+        AGENT_HEALTH_URL="http://${CLUSTER_NODE_IP}:30501/health"
+        log_ok "Agente detectado no cluster — NodePort: http://${CLUSTER_NODE_IP}:30501"
+    else
+        log_warn "Agente no cluster mas IP do nó não encontrado — usando localhost:5001"
+        AGENT_IN_CLUSTER=false
+    fi
+fi
+
+# =============================================================================
 # PASSO 1 — Aplicar PrometheusRule
 # =============================================================================
 log_step "Passo 1 — PrometheusRule"
@@ -315,9 +339,13 @@ start_port_forward monitoring kube-prometheus-stack-alertmanager 9093 9093 "Aler
 start_port_forward monitoring kube-prometheus-stack-grafana      3000 80   "Grafana"      || true
 
 # =============================================================================
-# PASSO 3 — Verificar Ollama
+# PASSO 3 — Verificar Ollama (apenas modo local)
 # =============================================================================
 log_step "Passo 3 — Ollama (LLM local)"
+
+if $AGENT_IN_CLUSTER; then
+  log_ok "Agente rodando no cluster — LLM configurado via Secret do pod. Passo ignorado."
+else
 
 OLLAMA_URL="http://localhost:11434"
 
@@ -367,10 +395,16 @@ if curl -sf "${OLLAMA_URL}/api/tags" -o /tmp/ollama-tags.json 2>/dev/null; then
   fi
 fi
 
+fi # fim do bloco: ! AGENT_IN_CLUSTER (Passo 3)
+
 # =============================================================================
-# PASSO 4 — Iniciar agente
+# PASSO 4 — Iniciar agente (apenas modo local)
 # =============================================================================
 log_step "Passo 4 — Agente AIOps (webhook receiver)"
+
+if $AGENT_IN_CLUSTER; then
+  log_ok "Agente rodando no cluster — sem necessidade de iniciar localmente. Passo ignorado."
+else
 
 # Libera a porta se necessário
 free_port 5001 "agente" || true
@@ -431,6 +465,24 @@ if ! $AGENT_UP && $AGENT_OK; then
   warn "Agente pode estar com inicialização lenta. Continuando."
 fi
 
+fi # fim do bloco: ! AGENT_IN_CLUSTER (Passo 4)
+
+# No modo cluster, confirma que o agente no pod está respondendo
+if $AGENT_IN_CLUSTER; then
+  AGENT_UP=false
+  log_info "Verificando agente no cluster (${AGENT_HEALTH_URL})..."
+  for _ in $(seq 1 10); do
+    if curl -sf "${AGENT_HEALTH_URL}" -o /dev/null 2>/dev/null; then
+      HEALTH=$(curl -s "${AGENT_HEALTH_URL}" 2>/dev/null || echo "{}")
+      log_ok "Agente no cluster respondendo: ${HEALTH}"
+      AGENT_UP=true
+      break
+    fi
+    sleep 2
+  done
+  $AGENT_UP || warn "Agente no cluster não respondeu em 20s — fast check pode falhar."
+fi
+
 # =============================================================================
 # PASSO 5 — Fast check
 # =============================================================================
@@ -443,32 +495,40 @@ if ! $AGENT_UP; then
 elif [ ! -f "$FIXTURE" ]; then
   log_warn "Fixture não encontrado: ${FIXTURE} — pulando fast check."
 else
-  log_info "Enviando: $(basename "$FIXTURE")"
+  log_info "Enviando: $(basename "$FIXTURE") → ${AGENT_WEBHOOK}"
 
   FC_RESPONSE="/tmp/camunda-aiops-fast-check-$$.json"
   HTTP_STATUS=$(curl -s -o "$FC_RESPONSE" -w "%{http_code}" \
-    -X POST http://localhost:5001/webhook \
+    -X POST "${AGENT_WEBHOOK}" \
     -H "Content-Type: application/json" \
     -d @"$FIXTURE" 2>/dev/null || echo "000")
 
   case "$HTTP_STATUS" in
-    200)
+    200|202)
       MSG=$(python3 -c \
         "import json; d=json.load(open('$FC_RESPONSE')); print(d.get('message','?'))" \
         2>/dev/null || echo "?")
-      log_ok "Fast check OK (HTTP 200) — ${MSG}"
+      log_ok "Fast check OK (HTTP ${HTTP_STATUS}) — ${MSG}"
       log_info "Aguardando análise do LLM (pode levar alguns segundos)..."
-      # Aguarda até 30s pela análise aparecer no log
-      for _ in $(seq 1 30); do
-        if grep -q "Análise concluída" "$AGENT_LOG" 2>/dev/null; then
-          break
-        fi
-        sleep 1
-      done
-      echo ""
-      log_info "Trecho do log do agente:"
-      grep -A5 "Análise concluída\|CAUSA_RAIZ\|Notificação enviada" "$AGENT_LOG" 2>/dev/null \
-        | head -20 | sed 's/^/    /' || true
+      if $AGENT_IN_CLUSTER; then
+        # No cluster, aguarda 30s e exibe últimas linhas dos logs do pod
+        sleep 30
+        echo ""
+        log_info "Trecho do log do pod:"
+        kubectl logs -n camunda -l app=camunda-aiops-agent --tail=20 2>/dev/null \
+          | grep -E "Análise|CAUSA_RAIZ|Notificação|concluída" | sed 's/^/    /' || true
+      else
+        for _ in $(seq 1 30); do
+          if grep -q "Análise concluída" "$AGENT_LOG" 2>/dev/null; then
+            break
+          fi
+          sleep 1
+        done
+        echo ""
+        log_info "Trecho do log do agente:"
+        grep -A5 "Análise concluída\|CAUSA_RAIZ\|Notificação enviada" "$AGENT_LOG" 2>/dev/null \
+          | head -20 | sed 's/^/    /' || true
+      fi
       ;;
     000)
       log_err "Falha de conexão com o agente (curl retornou erro de rede)."
@@ -520,21 +580,36 @@ if [ "$WARNINGS" -gt 0 ]; then
 fi
 
 echo -e "  ${BOLD}Endpoints:${NC}"
-echo -e "    Agente:       ${CYAN}http://localhost:5001/health${NC}"
+if $AGENT_IN_CLUSTER; then
+  echo -e "    Agente (cluster): ${CYAN}${AGENT_HEALTH_URL}${NC}"
+  echo -e "    Agente (webhook): ${CYAN}${AGENT_WEBHOOK}${NC}"
+else
+  echo -e "    Agente:       ${CYAN}http://localhost:5001/health${NC}"
+fi
 echo -e "    Prometheus:   ${CYAN}http://localhost:9090/alerts${NC}"
 echo -e "    Alertmanager: ${CYAN}http://localhost:9093${NC}"
 echo -e "    Grafana:      ${CYAN}http://localhost:3000${NC}"
 echo ""
 echo -e "  ${BOLD}Enviar alerta manualmente:${NC}"
-echo -e "    ${CYAN}curl -X POST http://localhost:5001/webhook \\"
+echo -e "    ${CYAN}curl -X POST ${AGENT_WEBHOOK} \\"
 echo -e "      -H 'Content-Type: application/json' \\"
 echo -e "      -d @${PROJECT_DIR}/tests/fixtures/zeebe-memory-predicted-high-alert.json${NC}"
 echo ""
-echo -e "  ${BOLD}Log completo do agente:${NC}"
-echo -e "    ${CYAN}tail -f ${AGENT_LOG}${NC}"
+if $AGENT_IN_CLUSTER; then
+  echo -e "  ${BOLD}Log do agente no cluster:${NC}"
+  echo -e "    ${CYAN}kubectl logs -n camunda -l app=camunda-aiops-agent -f --tail=50${NC}"
+  echo -e "    ${CYAN}make k8s-logs${NC}"
+else
+  echo -e "  ${BOLD}Log completo do agente:${NC}"
+  echo -e "    ${CYAN}tail -f ${AGENT_LOG}${NC}"
+fi
 echo ""
 echo -e "${YELLOW}  Pressione Ctrl+C para encerrar e limpar todos os recursos.${NC}"
 echo ""
 
-# Tail em primeiro plano — bloqueia até Ctrl+C
-tail -f "$AGENT_LOG"
+# Monitoramento em primeiro plano — bloqueia até Ctrl+C
+if $AGENT_IN_CLUSTER; then
+  kubectl logs -n camunda -l app=camunda-aiops-agent -f --tail=50
+else
+  tail -f "$AGENT_LOG"
+fi

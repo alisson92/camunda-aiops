@@ -8,6 +8,19 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added (limpeza Makefile + lint unificado)
+- `Makefile`: reestruturado com grupos `##@` (Desenvolvimento, Demo local, Cluster Kind, Operações K8s) e linhas de exemplo `##  ↳` — `make help` exibe 14 targets em vez de 27
+- `make lint`: unificado — Python (`ruff`), Shell (`shellcheck --severity=warning scripts/*.sh`) e YAML (`yamllint -c .yamllint.yml alerting/`), igual ao CI
+- `make test`: encadeia unit → integration → e2e em sequência; `make test-unit` mantido para dev loop rápido sem Docker
+- Plumbing (`build`, `kind-load`, `k8s-apply`, `smoke`, `cycle-test`, etc.) permanece chamável diretamente mas sem `##` — invisível no help
+- `scripts/deploy.sh`: remove `YELLOW` não utilizado (SC2034)
+- `scripts/run-cycle-test.sh`: remove `AGENT_LOG_CMD` não utilizado (SC2034)
+
+### Added (separação deploy cluster vs demo local)
+- `Makefile`: target `deploy` substituído — chama `scripts/deploy.sh` + `make cycle-test` (load real + alertas orgânicos); target `deploy-fast` novo — chama `scripts/deploy.sh` + `make smoke` (smoke rápido com fixtures)
+- `scripts/run-cycle-test.sh`: detecção automática de modo cluster — se pod `camunda-aiops-agent` estiver `Running` no namespace `camunda`, Passos 3 (Ollama local) e 4 (iniciar agente local) são ignorados; Passo 5 usa NodePort detectado dinamicamente; Passo 7 usa `kubectl logs -f` em vez de `tail -f` do log local
+- `scripts/demo.sh`: sanity check pós-demo — ao final de todos os cenários, verifica `/health` e extrai `aiops_alerts_queued_total`/`aiops_alerts_processed_total` do endpoint `/metrics`
+
 ### Added (deploy Kubernetes + persistência PVC)
 - `Dockerfile` — build do agente: base `python:3.11-slim`, usuário não-root `aiops`, curated examples baked na imagem, `WORKDIR /app/agent`, healthcheck via `/health`, expõe porta 5001
 - `.dockerignore` — exclui testes, docs, scripts, dashboards, alertas, `.venv`, runbooks gerados em runtime e secrets
