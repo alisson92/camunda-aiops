@@ -8,6 +8,9 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed (deduplicação no passo 9/9 do deploy)
+- `scripts/deploy.sh`: passo 9/9 tratava `queued=0` como falha, mas esse valor indica deduplicação ativa (mesmo fingerprint dentro do TTL de 300s) — comportamento correto; o script agora distingue os dois casos: `queued=0` valida via histórico (`processed >= 1` confirma ciclo LLM anterior), `queued=1` aguarda o LLM por até 120s (comportamento anterior mantido)
+
 ### Fixed (conectividade Ollama no cluster + detecção de métrica)
 - `scripts/deploy.sh`: pre-flight corrigido — usava `ip route default` (retorna Windows Host `172.23.208.1`, não o WSL2) em vez de `ip addr show docker0` (bridge Docker `172.17.0.1`, estável e acessível de todos os pods Kind)
 - `scripts/deploy.sh`: grep da métrica `aiops_alerts_processed_total` corrigido — a métrica tem labels Prometheus (`{alertname="...",severity="..."}`) então o padrão com espaço nunca casava; trocado para `^aiops_alerts_processed_total{` com `awk '{sum += int($NF)}'`; PROCESSED ficava sempre 0 mesmo com o ciclo LLM concluído
