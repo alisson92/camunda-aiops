@@ -70,16 +70,18 @@ demo-%: ## Cenário específico
 
 ##@ Cluster Kind
 
-deploy: ## Deploy + cycle-test completo (load real → alertas orgânicos)
+deploy: ## Deploy + port-forwards + cycle-test completo (load real → alertas orgânicos)
 ##  ↳ make deploy  |  make deploy INTENSITY=high DURATION=30
 	IMAGE_NAME=$(IMAGE_NAME) IMAGE_TAG=$(IMAGE_TAG) KIND_CLUSTER=$(KIND_CLUSTER) \
 	  ./scripts/deploy.sh
+	$(MAKE) port-forward
 	$(MAKE) cycle-test
 
-deploy-fast: ## Deploy + validação do ciclo completo (sem load-generator)
+deploy-fast: ## Deploy + port-forwards + validação do ciclo completo (sem load-generator)
 ##  ↳ make deploy-fast
 	IMAGE_NAME=$(IMAGE_NAME) IMAGE_TAG=$(IMAGE_TAG) KIND_CLUSTER=$(KIND_CLUSTER) \
 	  ./scripts/deploy.sh
+	$(MAKE) port-forward
 
 ##@ Operações K8s
 
@@ -94,9 +96,17 @@ k8s-delete: ## Remove deployment/svc/cronjob  ⚠ PVC e Secret são mantidos
 	kubectl delete service    camunda-aiops-agent -n camunda --ignore-not-found
 	kubectl delete cronjob    camunda-aiops-data-cleanup    -n camunda --ignore-not-found
 
-port-forward: ## Abre port-forwards para Prometheus:9090 e Grafana:3000
+port-forward: ## Abre port-forwards: Prometheus:9090, Grafana:3000, Agente:5001
+	@echo "→ Encerrando port-forwards anteriores (se houver)..."
+	-@pkill -f "kubectl port-forward.*9090" 2>/dev/null; true
+	-@pkill -f "kubectl port-forward.*3000" 2>/dev/null; true
+	-@pkill -f "kubectl port-forward.*5001" 2>/dev/null; true
+	@sleep 1
 	kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090 &
 	kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana    3000:80   &
+	kubectl port-forward -n camunda    svc/camunda-aiops-agent               5001:5001 &
+	@sleep 2
+	@echo "✔  Port-forwards ativos: Prometheus:9090 | Grafana:3000 | Agente:5001"
 
 # ── Plumbing — chamáveis diretamente, mas não listados no help ────────────────
 

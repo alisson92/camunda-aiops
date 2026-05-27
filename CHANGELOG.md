@@ -8,6 +8,23 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed (horário "Started" no card Teams exibia data estática do fixture)
+- `scripts/deploy.sh`: passo 9/9 enviava o fixture diretamente com `curl -d @file`, preservando o `startsAt` hardcoded do arquivo em disco; injetado timestamp UTC atual via Python inline (mesmo padrão do `demo.sh`) antes de enviar — `startsAt` e `endsAt` de todos os alertas do payload são sobrescritos com o horário real
+
+### Fixed (Error 1 ao final do passo 9/9 mesmo com LLM processando com sucesso)
+- `scripts/deploy.sh`: `grep -c "Notificação enviada"` retorna exit code 1 quando não encontra matches (contagem 0); com `set -euo pipefail`, a atribuição `NOTIFIED=$(... | grep -c ...)` propagava o exit 1 e abortava o script logo após imprimir o `✔ LLM processou o alerta`; corrigido com `{ grep -c "..." || true; }` no pipeline
+
+### Fixed (port-forward manual desnecessário — deploy já sobe os tunnels)
+- `Makefile`: targets `deploy` e `deploy-fast` agora chamam `$(MAKE) port-forward` automaticamente após o `deploy.sh`, eliminando a necessidade de abrir outro terminal
+- `Makefile`: target `port-forward` encerra port-forwards anteriores (pkill por porta) antes de criar novos, evitando processos duplicados entre deploys consecutivos
+
+### Fixed (links do card Teams inacessíveis ao clicar no browser Windows)
+- `scripts/deploy.sh`: `AGENT_PUBLIC_URL` era injetado como `http://172.18.0.6:30501` (IP interno do nó Kind), inacessível do browser Windows; alterado para `http://localhost:5001` — links de Runbook, Silence e Dashboard do card Teams agora funcionam via `make port-forward`
+- `Makefile`: target `port-forward` agora inclui o serviço do agente (`svc/camunda-aiops-agent 5001:5001`), junto com Prometheus e Grafana
+
+### Fixed (integer expression expected em PROCESSED/BASELINE no passo 9/9)
+- `scripts/deploy.sh`: com `set -euo pipefail`, quando `grep` não encontra matches ele sai com código 1, fazendo o pipeline inteiro falhar e disparando o `|| echo "0"` de fallback — mas `awk END {print sum+0}` já havia imprimido `0`, resultando em `"0\n0"` (duas linhas) e quebrando `[ "${PROCESSED}" -gt "${BASELINE}" ]`; corrigido usando `{ grep ... || true; }` nos três locais onde BASELINE/PROCESSED são calculados, eliminando também os `|| echo "0"` redundantes
+
 ### Fixed (erro integer expression no passo 9/9 do deploy)
 - `scripts/deploy.sh`: `grep -c` sempre imprime um número (mesmo `0`) e sai com código 1 quando não há matches — o `|| echo "0"` era disparado e `NOTIFIED` ficava com duas linhas (`"0\n0"`), causando `integer expression expected` no `[ -ge 1 ]`; removido o fallback desnecessário
 

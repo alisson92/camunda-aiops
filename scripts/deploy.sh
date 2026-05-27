@@ -94,7 +94,10 @@ kubectl apply -k "${PROJECT_DIR}/deploy/"
 ok "Manifests aplicados."
 
 # ── 5. AGENT_PUBLIC_URL dinâmico ──────────────────────────────────────────────
-step "5/9" "Injetando AGENT_PUBLIC_URL com IP do NodePort"
+step "5/9" "Injetando AGENT_PUBLIC_URL para acesso via port-forward (localhost:5001)"
+# Usa localhost:5001 em vez do NodePort interno (172.18.x.x) porque os links do
+# card Teams são abertos no browser Windows, que não enxerga a rede interna do Kind.
+# 'make port-forward' expõe o agente em localhost:5001 acessível de qualquer OS.
 NODE_IP=$(kubectl get nodes \
   -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
 
@@ -105,8 +108,8 @@ fi
 
 kubectl set env deployment/camunda-aiops-agent \
   -n camunda \
-  "AGENT_PUBLIC_URL=http://${NODE_IP}:30501"
-ok "AGENT_PUBLIC_URL=http://${NODE_IP}:30501"
+  "AGENT_PUBLIC_URL=http://localhost:5001"
+ok "AGENT_PUBLIC_URL=http://localhost:5001  (acesse via 'make port-forward')"
 
 # ── 6. Rollout ────────────────────────────────────────────────────────────────
 step "6/9" "Aguardando rollout concluir"
@@ -153,14 +156,29 @@ else
     # A métrica tem labels: aiops_alerts_processed_total{alertname="..."} 1.0
     # grep sem espaço após o nome para casar com '{' que precede os labels.
     BASELINE=$(curl -sf "$METRICS_URL" 2>/dev/null \
-        | grep '^aiops_alerts_processed_total{' \
-        | awk '{sum += int($NF)} END {print sum+0}' || echo "0")
+        | { grep '^aiops_alerts_processed_total{' || true; } \
+        | awk '{sum += int($NF)} END {print sum+0}')
+
+    # Injeta timestamp atual no fixture — o startsAt é estático no arquivo em disco.
+    # Sem isso, o card Teams exibe a data de criação do fixture, não o horário real.
+    FIXTURE_PAYLOAD=$(python3 -c "
+import json, datetime, sys
+data = json.load(open('${FIXTURE}'))
+now = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+data['startsAt'] = now
+data['endsAt']   = '0001-01-01T00:00:00Z'
+for alert in data.get('alerts', []):
+    alert['startsAt'] = now
+    alert['endsAt']   = '0001-01-01T00:00:00Z'
+print(json.dumps(data))
+" 2>/dev/null || python3 -c "import json; print(open('${FIXTURE}').read())")
 
     info "Enviando fixture ao webhook do pod (${WEBHOOK_URL})..."
-    HTTP_STATUS=$(curl -s -o "$WEBHOOK_RESP" -w "%{http_code}" \
+    HTTP_STATUS=$(echo "$FIXTURE_PAYLOAD" \
+        | curl -s -o "$WEBHOOK_RESP" -w "%{http_code}" \
         -X POST "$WEBHOOK_URL" \
         -H "Content-Type: application/json" \
-        -d @"$FIXTURE" 2>/dev/null || echo "000")
+        -d @- 2>/dev/null || echo "000")
 
     if [[ "$HTTP_STATUS" != "200" && "$HTTP_STATUS" != "202" ]]; then
         err "Webhook retornou HTTP ${HTTP_STATUS} — esperado 200 ou 202."
@@ -180,8 +198,8 @@ else
         # Isso é comportamento correto — o webhook está funcional.
         # Valida via histórico: se processed >= 1, o ciclo já foi confirmado antes.
         PROCESSED=$(curl -sf "$METRICS_URL" 2>/dev/null \
-            | grep '^aiops_alerts_processed_total{' \
-            | awk '{sum += int($NF)} END {print sum+0}' || echo "0")
+            | { grep '^aiops_alerts_processed_total{' || true; } \
+            | awk '{sum += int($NF)} END {print sum+0}')
         if [ "${PROCESSED}" -ge 1 ]; then
             ok "Alerta deduplicado (TTL 300s ativo) — webhook funcional; ciclo LLM confirmado via histórico (processed=${PROCESSED})."
         else
@@ -195,8 +213,8 @@ else
         for idx in $(seq 1 24); do
             METRICS=$(curl -sf "$METRICS_URL" 2>/dev/null || echo "")
             PROCESSED=$(echo "$METRICS" \
-                | grep '^aiops_alerts_processed_total{' \
-                | awk '{sum += int($NF)} END {print sum+0}' || echo "0")
+                | { grep '^aiops_alerts_processed_total{' || true; } \
+                | awk '{sum += int($NF)} END {print sum+0}')
             if [ "${PROCESSED}" -gt "${BASELINE}" ]; then
                 break
             fi
@@ -208,8 +226,9 @@ else
             ok "LLM processou o alerta (aiops_alerts_processed_total=${PROCESSED})"
 
             # Confirma entrega no Teams via log do pod
+            # grep -c retorna exit 1 quando count=0 — || true evita abort por pipefail
             NOTIFIED=$(kubectl logs -n camunda -l app=camunda-aiops-agent --tail=100 2>/dev/null \
-                | grep -c "Notificação enviada")
+                | { grep -c "Notificação enviada" || true; })
             if [ "${NOTIFIED}" -ge 1 ]; then
                 ok "Teams notificado com sucesso (${NOTIFIED} notificação(ões) no log do pod)."
             else
