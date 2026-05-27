@@ -13,6 +13,7 @@
 #   6. Aguarda rollout concluir
 #   7. Configura Alertmanager via helm upgrade
 #   8. Health check final
+#   9. Validação do ciclo: webhook → agente → LLM → Teams
 
 set -euo pipefail
 
@@ -32,17 +33,17 @@ info() { echo -e "  ${CYAN}→${RESET} $1"; }
 err()  { echo -e "  ${RED}✖${RESET} $1" >&2; }
 
 # ── 1. Build ──────────────────────────────────────────────────────────────────
-step "1/7" "Build da imagem ${IMAGE_NAME}:${IMAGE_TAG}"
+step "1/9" "Build da imagem ${IMAGE_NAME}:${IMAGE_TAG}"
 docker build -t "${IMAGE_NAME}:${IMAGE_TAG}" "${PROJECT_DIR}"
 ok "Imagem construída."
 
 # ── 2. Kind load ──────────────────────────────────────────────────────────────
-step "2/7" "Carregando imagem no Kind (${KIND_CLUSTER})"
+step "2/9" "Carregando imagem no Kind (${KIND_CLUSTER})"
 kind load docker-image "${IMAGE_NAME}:${IMAGE_TAG}" --name "${KIND_CLUSTER}"
 ok "Imagem disponível nos nós do cluster."
 
 # ── 3. Secret ─────────────────────────────────────────────────────────────────
-step "3/7" "Verificando Secret"
+step "3/9" "Verificando Secret"
 if ! kubectl get secret camunda-aiops-secret -n camunda > /dev/null 2>&1; then
     err "Secret 'camunda-aiops-secret' não encontrado no namespace camunda."
     echo ""
@@ -56,12 +57,12 @@ fi
 ok "Secret encontrado."
 
 # ── 4. Manifests ──────────────────────────────────────────────────────────────
-step "4/7" "Aplicando manifests (PVC, Deployment, Service, CronJob)"
+step "4/9" "Aplicando manifests (PVC, Deployment, Service, CronJob)"
 kubectl apply -k "${PROJECT_DIR}/deploy/"
 ok "Manifests aplicados."
 
 # ── 5. AGENT_PUBLIC_URL dinâmico ──────────────────────────────────────────────
-step "5/7" "Injetando AGENT_PUBLIC_URL com IP do NodePort"
+step "5/9" "Injetando AGENT_PUBLIC_URL com IP do NodePort"
 NODE_IP=$(kubectl get nodes \
   -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
 
@@ -73,22 +74,23 @@ fi
 kubectl set env deployment/camunda-aiops-agent \
   -n camunda \
   "AGENT_PUBLIC_URL=http://${NODE_IP}:30501"
+ok "AGENT_PUBLIC_URL=http://${NODE_IP}:30501"
 
-info "AGENT_PUBLIC_URL=http://${NODE_IP}:30501"
-info "Aguardando rollout concluir..."
+# ── 6. Rollout ────────────────────────────────────────────────────────────────
+step "6/9" "Aguardando rollout concluir"
 kubectl rollout status deployment/camunda-aiops-agent -n camunda --timeout=120s
 ok "Rollout concluído."
 
-# ── 6. Alertmanager ───────────────────────────────────────────────────────────
-step "6/7" "Configurando Alertmanager (helm upgrade)"
+# ── 7. Alertmanager ───────────────────────────────────────────────────────────
+step "7/9" "Configurando Alertmanager (helm upgrade)"
 helm upgrade kube-prometheus-stack prometheus-community/kube-prometheus-stack \
   -n monitoring \
   --reuse-values \
   -f "${PROJECT_DIR}/deploy/alertmanager-values.yaml"
 ok "Alertmanager atualizado — receiver aponta para o service interno do cluster."
 
-# ── 7. Health check ───────────────────────────────────────────────────────────
-step "7/7" "Health check"
+# ── 8. Health check ───────────────────────────────────────────────────────────
+step "8/9" "Health check"
 sleep 2
 HEALTH=$(curl -sf "http://${NODE_IP}:30501/health" 2>/dev/null || echo "")
 
@@ -102,6 +104,78 @@ fi
 
 echo "$HEALTH" | python3 -m json.tool 2>/dev/null || echo "$HEALTH"
 ok "Agente respondendo."
+
+# ── 9. Validação do ciclo: webhook → agente → LLM → Teams ────────────────────
+step "9/9" "Validação do ciclo completo (webhook → LLM → Teams)"
+
+FIXTURE="${PROJECT_DIR}/tests/fixtures/zeebe-backpressure-growing-alert.json"
+WEBHOOK_URL="http://${NODE_IP}:30501/webhook"
+METRICS_URL="http://${NODE_IP}:30501/metrics"
+WEBHOOK_RESP="/tmp/deploy-webhook-check-$$.json"
+
+if [ ! -f "$FIXTURE" ]; then
+    info "Fixture não encontrado — execute 'make generate-fixtures' e re-deploy."
+    info "Pulando validação do ciclo."
+else
+    # Captura baseline de aiops_alerts_processed_total antes de enviar
+    BASELINE=$(curl -sf "$METRICS_URL" 2>/dev/null \
+        | grep '^aiops_alerts_processed_total ' \
+        | awk '{print int($2)}' || echo "0")
+
+    info "Enviando fixture ao webhook do pod (${WEBHOOK_URL})..."
+    HTTP_STATUS=$(curl -s -o "$WEBHOOK_RESP" -w "%{http_code}" \
+        -X POST "$WEBHOOK_URL" \
+        -H "Content-Type: application/json" \
+        -d @"$FIXTURE" 2>/dev/null || echo "000")
+
+    if [[ "$HTTP_STATUS" != "200" && "$HTTP_STATUS" != "202" ]]; then
+        err "Webhook retornou HTTP ${HTTP_STATUS} — esperado 200 ou 202."
+        echo ""
+        echo "  Verifique os logs do pod:"
+        echo -e "  ${BOLD}make k8s-logs${RESET}"
+        exit 1
+    fi
+
+    QUEUED=$(python3 -c \
+        "import json; print(json.load(open('${WEBHOOK_RESP}')).get('queued', 0))" \
+        2>/dev/null || echo "0")
+    ok "Webhook recebeu o alerta (HTTP ${HTTP_STATUS}, queued=${QUEUED})"
+
+    # Aguarda LLM processar — Ollama local pode levar até 120s
+    info "Aguardando análise do LLM (até 120s)..."
+    PROCESSED=0
+    for idx in $(seq 1 24); do
+        METRICS=$(curl -sf "$METRICS_URL" 2>/dev/null || echo "")
+        PROCESSED=$(echo "$METRICS" \
+            | grep '^aiops_alerts_processed_total ' \
+            | awk '{print int($2)}' || echo "0")
+        if [ "${PROCESSED}" -gt "${BASELINE}" ]; then
+            break
+        fi
+        info "  [${idx}/24] aguardando... (processed=${PROCESSED}, baseline=${BASELINE})"
+        sleep 5
+    done
+
+    if [ "${PROCESSED}" -gt "${BASELINE}" ]; then
+        ok "LLM processou o alerta (aiops_alerts_processed_total=${PROCESSED})"
+
+        # Confirma entrega no Teams via log do pod
+        NOTIFIED=$(kubectl logs -n camunda -l app=camunda-aiops-agent --tail=100 2>/dev/null \
+            | grep -c "Notificação enviada" || echo "0")
+        if [ "${NOTIFIED}" -ge 1 ]; then
+            ok "Teams notificado com sucesso (${NOTIFIED} notificação(ões) no log do pod)."
+        else
+            info "Notificação Teams não confirmada nos logs ainda — verifique o canal."
+        fi
+    else
+        err "LLM não processou o alerta em 120s."
+        echo ""
+        echo "  Diagnóstico:"
+        echo -e "  ${BOLD}make k8s-logs${RESET}"
+        echo -e "  ${BOLD}kubectl describe pod -n camunda -l app=camunda-aiops-agent${RESET}"
+        exit 1
+    fi
+fi
 
 echo ""
 echo -e "${BOLD}${GREEN}Deploy concluído.${RESET}"

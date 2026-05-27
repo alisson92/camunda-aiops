@@ -76,11 +76,10 @@ deploy: ## Deploy + cycle-test completo (load real → alertas orgânicos)
 	  ./scripts/deploy.sh
 	$(MAKE) cycle-test
 
-deploy-fast: ## Deploy + smoke rápido (fixtures → Teams, sem load-generator)
+deploy-fast: ## Deploy + validação do ciclo completo (sem load-generator)
 ##  ↳ make deploy-fast
 	IMAGE_NAME=$(IMAGE_NAME) IMAGE_TAG=$(IMAGE_TAG) KIND_CLUSTER=$(KIND_CLUSTER) \
 	  ./scripts/deploy.sh
-	$(MAKE) smoke
 
 ##@ Operações K8s
 
