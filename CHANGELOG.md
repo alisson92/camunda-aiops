@@ -8,6 +8,10 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed (deploy-fast sem cobertura real do ciclo)
+- `scripts/deploy.sh`: adicionado passo 9/9 — envia fixture `zeebe-backpressure-growing-alert.json` ao NodePort do pod, aguarda `aiops_alerts_processed_total` incrementar (LLM processou) e confirma via `kubectl logs` que a notificação Teams foi entregue; usa baseline pré-envio para não confundir com contadores de deploys anteriores
+- `Makefile`: `deploy-fast` removeu chamada a `make smoke` — validação do ciclo já está incorporada no `deploy.sh`; `smoke` permanece como plumbing para quem quiser testar o canal Teams isoladamente
+
 ### Added (limpeza Makefile + lint unificado)
 - `Makefile`: reestruturado com grupos `##@` (Desenvolvimento, Demo local, Cluster Kind, Operações K8s) e linhas de exemplo `##  ↳` — `make help` exibe 14 targets em vez de 27
 - `make lint`: unificado — Python (`ruff`), Shell (`shellcheck --severity=warning scripts/*.sh`) e YAML (`yamllint -c .yamllint.yml alerting/`), igual ao CI
@@ -17,7 +21,7 @@ Versões seguem [Semantic Versioning](https://semver.org/).
 - `scripts/run-cycle-test.sh`: remove `AGENT_LOG_CMD` não utilizado (SC2034)
 
 ### Added (separação deploy cluster vs demo local)
-- `Makefile`: target `deploy` substituído — chama `scripts/deploy.sh` + `make cycle-test` (load real + alertas orgânicos); target `deploy-fast` novo — chama `scripts/deploy.sh` + `make smoke` (smoke rápido com fixtures)
+- `Makefile`: target `deploy` substituído — chama `scripts/deploy.sh` + `make cycle-test` (load real + alertas orgânicos); target `deploy-fast` novo — chama apenas `scripts/deploy.sh` (validação do ciclo já embutida no passo 9/9)
 - `scripts/run-cycle-test.sh`: detecção automática de modo cluster — se pod `camunda-aiops-agent` estiver `Running` no namespace `camunda`, Passos 3 (Ollama local) e 4 (iniciar agente local) são ignorados; Passo 5 usa NodePort detectado dinamicamente; Passo 7 usa `kubectl logs -f` em vez de `tail -f` do log local
 - `scripts/demo.sh`: sanity check pós-demo — ao final de todos os cenários, verifica `/health` e extrai `aiops_alerts_queued_total`/`aiops_alerts_processed_total` do endpoint `/metrics`
 
