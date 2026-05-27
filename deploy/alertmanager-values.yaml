@@ -1,0 +1,47 @@
+# alertmanager-values.yaml — patch de valores Helm para o kube-prometheus-stack.
+# Configura o Alertmanager para rotear alertas ao agente AIOps via service interno.
+#
+# Aplicado automaticamente por 'make deploy'.
+# Aplicar manualmente: make alertmanager-config
+#
+# Estratégia de roteamento:
+#   Watchdog / InfoInhibitor → null (silêncio, padrão do chart)
+#   Demais alertas           → camunda-aiops (agente decide internamente via label agentia)
+alertmanager:
+  config:
+    global:
+      resolve_timeout: 5m
+    inhibit_rules:
+      - equal: [namespace, alertname]
+        source_matchers: [severity = critical]
+        target_matchers: ['severity =~ warning|info']
+      - equal: [namespace, alertname]
+        source_matchers: [severity = warning]
+        target_matchers: [severity = info]
+      - equal: [namespace]
+        source_matchers: [alertname = InfoInhibitor]
+        target_matchers: [severity = info]
+      - target_matchers: [alertname = InfoInhibitor]
+    receivers:
+      - name: "null"
+      - name: camunda-aiops
+        webhook_configs:
+          # DNS interno do cluster — funciona sem port-forward, em qualquer nó.
+          # EKS produção: mesma URL, apenas o StorageClass e o Service type mudam.
+          - url: "http://camunda-aiops-agent.camunda.svc.cluster.local:5001/webhook"
+            send_resolved: true
+    route:
+      group_by: [namespace]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: "null"
+      routes:
+        - matchers:
+            - alertname =~ "InfoInhibitor|Watchdog"
+          receiver: "null"
+        # Todos os demais alertas vão para o agente.
+        # A label agentia=true controla quais terão análise LLM vs. notificação direta.
+        - receiver: camunda-aiops
+          group_wait: 10s
+          repeat_interval: 1h

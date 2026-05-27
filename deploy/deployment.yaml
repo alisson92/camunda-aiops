@@ -35,11 +35,10 @@ spec:
           envFrom:
             - secretRef:
                 name: camunda-aiops-secret
-          # Variáveis de infraestrutura — usando DNS interno do cluster (sem port-forward)
+          # Variáveis de infraestrutura — usando DNS interno do cluster (sem port-forward).
+          # AGENT_PUBLIC_URL é injetado dinamicamente por 'make deploy' com o IP do nó NodePort
+          # para que os links do Teams (Runbook, Silence) sejam acessíveis externamente.
           env:
-            - name: AGENT_PUBLIC_URL
-              # NodePort: substitua pelo IP do nó Kind se precisar de links externos do Teams
-              value: "http://camunda-aiops-agent.camunda.svc.cluster.local:5001"
             - name: ALERTMANAGER_URL
               value: "http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093"
             - name: PROMETHEUS_URL

@@ -19,7 +19,7 @@ KIND_CLUSTER := camunda-platform-local
 .PHONY: run test test-integration test-e2e smoke demo lint \
         port-forward check-metrics check-pod-metrics import-dashboard load \
         cycle-test cycle-test-fast generate-fixtures \
-        build kind-load k8s-apply k8s-delete k8s-logs k8s-status deploy \
+        build kind-load k8s-apply k8s-delete k8s-logs k8s-status deploy alertmanager-config \
         help
 
 # ── Agente ─────────────────────────────────────────────────────────────────────
@@ -57,27 +57,35 @@ generate-fixtures: ## Gera fixtures Alertmanager a partir de alerting/*.yaml (id
 
 # ── Docker / Kubernetes ────────────────────────────────────────────────────────
 
-deploy: ## Fluxo completo: build → kind-load → apply → aguarda pod pronto → health check
-	@echo "[1/5] Build da imagem $(IMAGE_NAME):$(IMAGE_TAG)..."
+deploy: ## Fluxo completo: build → kind-load → apply → AGENT_PUBLIC_URL → Alertmanager → health check
+	@echo "[1/6] Build da imagem $(IMAGE_NAME):$(IMAGE_TAG)..."
 	@docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .
-	@echo "[2/5] Carregando imagem no Kind ($(KIND_CLUSTER))..."
+	@echo "[2/6] Carregando imagem no Kind ($(KIND_CLUSTER))..."
 	@kind load docker-image $(IMAGE_NAME):$(IMAGE_TAG) --name $(KIND_CLUSTER)
-	@echo "[3/5] Verificando Secret..."
+	@echo "[3/6] Verificando Secret..."
 	@kubectl get secret camunda-aiops-secret -n camunda > /dev/null 2>&1 || \
 	  (echo "ERRO: Secret 'camunda-aiops-secret' não encontrado." && \
 	   echo "      cp deploy/secret.example.yaml deploy/secret.yaml" && \
 	   echo "      # edite deploy/secret.yaml com os valores reais" && \
 	   echo "      kubectl apply -f deploy/secret.yaml -n camunda" && exit 1)
-	@echo "[3/5] Aplicando manifests (PVC, Deployment, Service, CronJob)..."
+	@echo "[3/6] Aplicando manifests (PVC, Deployment, Service, CronJob)..."
 	@kubectl apply -k deploy/
-	@echo "[4/5] Forçando rollout para garantir nova imagem..."
-	@kubectl rollout restart deployment/camunda-aiops-agent -n camunda
-	@kubectl rollout status  deployment/camunda-aiops-agent -n camunda --timeout=120s
-	@echo "[5/5] Health check no NodePort..."
+	@echo "[4/6] Injetando AGENT_PUBLIC_URL com IP do NodePort e aguardando rollout..."
+	@NODE_IP=$$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}') && \
+	  kubectl set env deployment/camunda-aiops-agent -n camunda AGENT_PUBLIC_URL=http://$$NODE_IP:30501
+	@kubectl rollout status deployment/camunda-aiops-agent -n camunda --timeout=120s
+	@echo "[5/6] Configurando Alertmanager (helm upgrade)..."
+	@helm upgrade kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+	  -n monitoring --reuse-values -f deploy/alertmanager-values.yaml
+	@echo "[6/6] Health check no NodePort..."
 	@sleep 2
 	@NODE_IP=$$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}') && \
 	  curl -sf http://$$NODE_IP:30501/health | python3 -m json.tool && \
-	  echo "Deploy concluído. Webhook disponível em http://$$NODE_IP:30501/webhook"
+	  echo "Deploy concluído. Webhook: http://$$NODE_IP:30501/webhook"
+
+alertmanager-config: ## Atualiza receiver do Alertmanager para apontar ao agente no cluster
+	helm upgrade kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+	  -n monitoring --reuse-values -f deploy/alertmanager-values.yaml
 
 build: ## Build da imagem Docker do agente
 	docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .

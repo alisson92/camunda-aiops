@@ -26,9 +26,27 @@ mkdir -p "$LOG_DIR"
 
 # ── Constantes configuráveis via env ─────────────────────────────────────────
 
-WEBHOOK_URL="${WEBHOOK_URL:-http://localhost:5001/webhook}"
 AGENT_PORT="5001"
 OLLAMA_URL="${OLLAMA_URL:-http://localhost:11434}"
+
+# Auto-detecta se o agente está deployado no cluster Kind.
+# Se sim, usa o NodePort (IP do nó:30501) em vez de localhost.
+# Pode ser sobrescrito: WEBHOOK_URL=http://... ./scripts/demo.sh
+_detect_webhook_url() {
+    if kubectl get pod -n camunda -l app=camunda-aiops-agent --no-headers 2>/dev/null \
+       | grep -q "Running"; then
+        local node_ip
+        node_ip=$(kubectl get nodes \
+          -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' \
+          2>/dev/null | awk '{print $1}')
+        if [ -n "$node_ip" ]; then
+            echo "http://${node_ip}:30501/webhook"
+            return
+        fi
+    fi
+    echo "http://localhost:${AGENT_PORT}/webhook"
+}
+WEBHOOK_URL="${WEBHOOK_URL:-$(_detect_webhook_url)}"
 DELAY_BETWEEN="${DELAY_BETWEEN:-3}"  # segundos entre cenários
 
 # ── Cores ─────────────────────────────────────────────────────────────────────
@@ -158,8 +176,17 @@ ensure_ollama() {
 # ── Gerenciamento do agente ───────────────────────────────────────────────────
 
 ensure_agent() {
-    # Demo sempre reinicia o agente para garantir que o código e a configuração
-    # mais recentes estejam em uso.
+    # Se o agente estiver deployado no cluster Kind, reutiliza sem iniciar processo local.
+    if kubectl get pod -n camunda -l app=camunda-aiops-agent --no-headers 2>/dev/null \
+       | grep -q "Running"; then
+        local health
+        health=$(curl -s "${WEBHOOK_URL%/webhook}/health" 2>/dev/null || echo "{}")
+        log_ok "Agente rodando no cluster Kind — ${WEBHOOK_URL}"
+        log_ok "Health: ${health}"
+        return
+    fi
+
+    # Modo local: demo sempre reinicia o agente para garantir código e config atuais.
     if curl -sf "http://localhost:${AGENT_PORT}/health" -o /dev/null 2>/dev/null; then
         log_warn "Agente rodando na porta ${AGENT_PORT} — reiniciando para carregar código e config atuais."
         lsof -ti:"${AGENT_PORT}" | xargs kill -9 2>/dev/null || true
@@ -173,7 +200,7 @@ ensure_agent() {
         sleep 1
     fi
 
-    log_info "Iniciando agente (log: ${AGENT_LOG})..."
+    log_info "Iniciando agente localmente (log: ${AGENT_LOG})..."
     (cd "${PROJECT_DIR}/agent" && \
         ../.venv/bin/uvicorn webhook_receiver:app \
             --host 0.0.0.0 --port "${AGENT_PORT}" \
@@ -191,7 +218,6 @@ ensure_agent() {
             log_ok "Agente respondendo: ${health}"
             return
         fi
-        # Verifica se o processo ainda está vivo
         if ! kill -0 "$AGENT_PID" 2>/dev/null; then
             log_error "Processo do agente morreu prematuramente. Log:"
             tail -15 "${AGENT_LOG}" 2>/dev/null | sed 's/^/    /'
